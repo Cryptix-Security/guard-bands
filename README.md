@@ -73,7 +73,7 @@ This is an open research project. Feedback, suggestions, and contributions are w
 ## Contact
 
 **Montgomery Toren**  
-mtoren@cryptix.com  
+contact@cryptix.com  
 [Cryptix Security](https://github.com/Cryptix-Security)
 
 ## License
