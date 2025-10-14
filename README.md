@@ -96,12 +96,6 @@ Run the full test suite: `python3 test_manual.py`
 
 **Interpretation**: Successfully blocking known injection patterns in vulnerable models provides strong evidence that the cryptographic approach will protect against sophisticated attacks in current and future models.
 
-## Status
-
-**Research Phase**: Concept paper completed, implementation in development.
-
-📄 **[Read the Full Paper](./Guard-Bands-Paper.pdf)** - Complete technical specification with threat model, implementation considerations, and business case.
-
 ## Quick Start
 
 **📘 [See QUICKSTART.md](./QUICKSTART.md)** for complete build and run instructions.
@@ -112,6 +106,12 @@ The POC includes:
 - Claude integration with tool use
 - Security test suite
 - Interactive demo showing prompt injection prevention
+
+## Status
+
+**Research Phase**: Concept paper completed, implementation in development.
+
+📄 **[Read the Full Paper](./Guard-Bands-Paper.pdf)** - Complete technical specification with threat model, implementation considerations, and business case.
 
 ## Research Paper
 
