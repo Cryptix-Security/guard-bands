@@ -55,7 +55,14 @@ This is the same architectural flaw that plagued early computing systems until o
 
 ## Quick Start
 
-*Implementation coming soon*
+**📘 [See QUICKSTART.md](./QUICKSTART.md)** for complete build and run instructions.
+
+The POC includes:
+- Cryptographic wrapping service
+- Verification API
+- Claude integration with tool use
+- Security test suite
+- Interactive demo showing prompt injection prevention
 
 ## Research Paper
 
