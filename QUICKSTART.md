@@ -46,7 +46,7 @@ nano .env  # or use your preferred editor
 
 Your `.env` should look like:
 ```
-SECRET_KEY=kJ8n_mQ2vX9pL4rT6wY3zA1bC5dE7fG8hI0jK2lM4nO6pQ8rS
+SECRET_KEY=REAL_KEY_HERE
 ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
 DEBUG=True
 ```
