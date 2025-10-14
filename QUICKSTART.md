@@ -7,7 +7,7 @@ This guide walks you through building and running the Guard Bands POC that demon
 ## Prerequisites
 
 - **Python 3.8+** 
-- **Anthropic API Key** - Get $5 in free credits at [console.anthropic.com](https://console.anthropic.com)
+- **Anthropic API Key** - Using Claude for this POC 
 - **Git** (for cloning the repository)
 
 ## Installation
