@@ -373,7 +373,7 @@ MIT License - See [LICENSE](LICENSE) for details
 
 ## Author
 
-**Montgomery Toren**  
+**Monte (Montgomery) Toren**  
 contact@cryptix.com  
 [Cryptix Security](https://github.com/Cryptix-Security)
 
