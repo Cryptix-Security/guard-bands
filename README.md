@@ -8,6 +8,8 @@ Large Language Models process instructions and data through the same input chann
 
 This is the same architectural flaw that plagued early computing systems until out-of-band signaling separated control from data.
 
+Analogy: Guard Bands for prompts are similar to prepared statements for SQL.
+
 ## The Solution
 
 **Guard Bands** wrap untrusted content with cryptographically signed boundaries:
