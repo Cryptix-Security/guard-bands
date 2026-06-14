@@ -9,4 +9,5 @@
 - Included nonce values in authenticated MAC input.
 - Added app-side enforcement that guard-banded chat content must be verified before final model responses are accepted.
 - Added API curl examples, key-management expectations, and replay-protection examples.
-
+- Updated vulnerable dependency pins for `cryptography`, `python-dotenv`, `requests`, and `pytest`.
+- Added Dependabot configuration for future pip and GitHub Actions maintenance updates.
