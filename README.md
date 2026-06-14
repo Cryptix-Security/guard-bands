@@ -239,9 +239,9 @@ Known production gaps include:
 - development secrets and defaults
 - Keycloak development-mode configuration
 - no TLS termination in the local Compose stack
-- incomplete hardening guidance
-- limited automated test infrastructure
-- no formal release process yet
+- no persistent nonce ledger
+- no production key resolver or key-rotation workflow
+- no production deployment hardening profile
 
 See [`QUICKSTART.md`](./QUICKSTART.md) for additional production considerations.
 
@@ -263,6 +263,7 @@ Key files include:
 | `requirements.txt` | Python dependencies |
 | `tests/` | Pytest security, API, and tool-enforcement tests |
 | `QUICKSTART.md` | Setup, demo, and operational notes |
+| `Guard-Bands-Paper.md` | Editable Markdown source for the research paper |
 | `Guard-Bands-Paper.pdf` | Longer technical paper |
 
 ---
@@ -306,7 +307,9 @@ The included paper expands on:
 - business and operational use cases
 - comparison with existing approaches
 
-Read the full paper: [`Guard-Bands-Paper.pdf`](./Guard-Bands-Paper.pdf)
+Read the updated Markdown paper: [`Guard-Bands-Paper.md`](./Guard-Bands-Paper.md)
+
+The original PDF snapshot is also included: [`Guard-Bands-Paper.pdf`](./Guard-Bands-Paper.pdf)
 
 ---
 
