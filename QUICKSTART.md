@@ -8,7 +8,7 @@ This guide walks you through building and running the Guard Bands POC that demon
 
 ## Prerequisites
 
-- **Python 3.8+**
+- **Python 3.11+** (CI runs on 3.11 and 3.12; Docker uses 3.12)
 - **Anthropic API Key** - Using Claude for this POC
 - **Git** (for cloning the repository)
 - **Docker + Docker Compose** (optional for local Postgres; required for the full SSO stack)
@@ -121,12 +121,12 @@ For production/enterprise clients, use the `client_credentials` grant type inste
 
 ### Run the Security Tests
 
-Open a new terminal (keep server running):
+The security checks are now a standard pytest suite and do not require the server to be running:
 
 ```bash
 cd guard-bands
 source venv/bin/activate
-python3 test_manual.py
+python3 -m pytest
 ```
 
 **What it tests:**
@@ -135,6 +135,10 @@ python3 test_manual.py
 - ✅ Content modification detection
 - ✅ Forged guard band rejection
 - ✅ Unwrapped content handling
+- ✅ Canonical context serialization
+- ✅ Nonce tampering protection
+- ✅ API wrap/verify flows
+- ✅ LLM tool-call enforcement
 
 ### Run the LLM Demo
 
@@ -228,9 +232,9 @@ guard-bands/
 │       └── splunk.py        # Splunk HEC sink
 ├── keycloak/
 │   └── realm-export.json    # Auto-imported realm (client + test user)
-├── tests/
-│   └── __init__.py
-├── test_manual.py           # Security test suite
+├── tests/                   # Pytest security, API, and tool-enforcement tests
+├── docs/                    # API examples and operational guidance
+├── test_manual.py           # Legacy wrapper for python3 -m pytest
 ├── demo_llm_attack.py       # Interactive LLM demo
 ├── Dockerfile               # App container image
 ├── docker-compose.yml       # Full stack: Postgres, Keycloak, oauth2-proxy, app
@@ -398,12 +402,11 @@ Claude's response: [May or may not be fooled by injection]
 
 ### Adding New Test Cases
 
-Edit `test_manual.py`:
+Add or edit files in `tests/`:
 
 ```python
 def test_your_attack():
-    print_section("TEST: Your Custom Attack")
-    # Your test code here
+    assert attack_is_blocked()
 ```
 
 ### Changing the Model
@@ -429,6 +432,8 @@ This is a POC. For production use, consider:
 
 - **Key rotation** - Implement regular SECRET_KEY updates
 - **Key management** - Use proper secrets management (AWS Secrets Manager, etc.)
+- **Canonical context design** - Keep context fields stable and security-relevant
+- **Replay ledgers** - Store consumed nonces when payloads must be single-use
 - **Rate limiting** - Per-user limits already in place; tune thresholds for your traffic
 - **HTTPS** - Guard bands don't encrypt; terminate TLS at the load balancer, not oauth2-proxy
 - **Time expiration** - Add timestamp validation to nonces to prevent stale replay attacks
@@ -436,6 +441,13 @@ This is a POC. For production use, consider:
 - **Keycloak persistence** - Switch from H2 (dev) to Postgres backend for Keycloak in production
 - **Enterprise IdP** - Connect Keycloak to your LDAP/Active Directory or SAML provider via Keycloak identity federation
 - **Audit log retention** - Set Postgres table partitioning or Splunk index TTL as appropriate
+
+See also:
+
+- [`docs/API_EXAMPLES.md`](docs/API_EXAMPLES.md)
+- [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
+- [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
+- [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)
 
 ## Contributing
 

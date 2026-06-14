@@ -4,6 +4,44 @@ import secrets
 import base64
 import json
 import re
+from typing import Any
+
+
+GUARD_BAND_BLOCK_PATTERN = re.compile(
+    r"⟪INERT:START:.+?⟫\n.*?\n⟪INERT:END:.+?⟫",
+    re.DOTALL,
+)
+
+
+def canonical_json(value: Any) -> str:
+    """Return stable JSON for authenticated Guard Band metadata."""
+    return json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+
+
+def canonical_context(context: dict | None) -> str:
+    """Return the canonical context string used for signing and verification."""
+    return canonical_json(context or {})
+
+
+def canonical_mac_payload(content: str, context: dict | None, nonce: str) -> bytes:
+    """Serialize the exact payload authenticated by the Guard Band MAC."""
+    return canonical_json({
+        "content": content,
+        "context": context or {},
+        "nonce": nonce,
+    }).encode("utf-8")
+
+
+def extract_guard_band_blocks(text: str) -> list[str]:
+    """Find complete Guard Band blocks embedded in a larger prompt."""
+    return GUARD_BAND_BLOCK_PATTERN.findall(text)
+
 
 class GuardBandCrypto:
     def __init__(self, secret_key: bytes):
@@ -18,27 +56,23 @@ class GuardBandCrypto:
         h = hashlib.sha256(content.encode('utf-8')).digest()
         return base64.b64encode(h).decode('utf-8')
     
-    def generate_mac(self, content: str, context: dict) -> str:
-        """Generate HMAC for content + context"""
-        # Combine content and context into message
-        message = json.dumps({
-            'content': content,
-            'context': context
-        }, sort_keys=True).encode('utf-8')
-        
+    def generate_mac(self, content: str, context: dict, nonce: str) -> str:
+        """Generate HMAC for content + context + nonce."""
+        message = canonical_mac_payload(content, context, nonce)
+
         h = hmac.new(self.secret_key, message, hashlib.sha256)
         return base64.b64encode(h.digest()).decode('utf-8')
     
-    def verify_mac(self, content: str, context: dict, provided_mac: str) -> bool:
+    def verify_mac(self, content: str, context: dict, nonce: str, provided_mac: str) -> bool:
         """Verify HMAC matches"""
-        expected_mac = self.generate_mac(content, context)
+        expected_mac = self.generate_mac(content, context, nonce)
         return hmac.compare_digest(expected_mac, provided_mac)
     
     def wrap_content(self, content: str, context: dict, key_id: str = "key001") -> str:
         """Wrap content with guard bands"""
         nonce = self.generate_nonce()
         content_hash = self.hash_content(content)
-        mac = self.generate_mac(content, context)
+        mac = self.generate_mac(content, context, nonce)
         
         wrapped = (
             f"⟪INERT:START:r:{nonce}:h:{content_hash}⟫\n"
@@ -104,13 +138,14 @@ class GuardBandCrypto:
             
             # Verify MAC
             provided_mac = end_dict.get('mac', '')
-            if not self.verify_mac(content, context, provided_mac):
+            nonce = start_dict.get('r', '')
+            if not self.verify_mac(content, context, nonce, provided_mac):
                 return {"valid": False, "error": "MAC verification failed"}
             
             return {
                 "valid": True,
                 "content": content,
-                "nonce": start_dict.get('r'),
+                "nonce": nonce,
                 "key_id": end_dict.get('kid')
             }
             

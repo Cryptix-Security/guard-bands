@@ -3,7 +3,7 @@ import logging
 from anthropic import AsyncAnthropic
 
 from app.config import settings
-from app.crypto import GuardBandCrypto
+from app.crypto import GuardBandCrypto, extract_guard_band_blocks
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,11 @@ class LLMService:
             context = {}
 
         messages = [{"role": "user", "content": user_message}]
+        guard_band_blocks = extract_guard_band_blocks(user_message)
+        guard_bands_present = (
+            "⟪INERT:START" in user_message or "⟪INERT:END" in user_message
+        )
+        verified_blocks: set[str] = set()
 
         try:
             for _ in range(5):
@@ -87,6 +92,18 @@ class LLMService:
                 )
 
                 if response.stop_reason != "tool_use":
+                    if guard_bands_present:
+                        if not guard_band_blocks:
+                            return {
+                                "success": False,
+                                "error": "Guard band markers are incomplete or malformed",
+                            }
+                        if not all(block in verified_blocks for block in guard_band_blocks):
+                            return {
+                                "success": False,
+                                "error": "Guard-banded content was not verified before response",
+                            }
+
                     final_text = "".join(
                         b.text for b in response.content if hasattr(b, "text")
                     )
@@ -103,19 +120,34 @@ class LLMService:
                 tool_use = next((b for b in response.content if b.type == "tool_use"), None)
                 messages.append({"role": "assistant", "content": list(response.content)})
 
-                if tool_use and tool_use.name == "verify_guard_bands":
-                    result = _verify_tool(
-                        wrapped_content=tool_use.input["wrapped_content"],
-                        context=tool_use.input.get("context", context),
-                    )
-                    messages.append({
-                        "role": "user",
-                        "content": [{
-                            "type": "tool_result",
-                            "tool_use_id": tool_use.id,
-                            "content": str(result),
-                        }],
-                    })
+                if not tool_use:
+                    return {"success": False, "error": "Tool-use response did not include a tool call"}
+
+                if tool_use.name != "verify_guard_bands":
+                    return {"success": False, "error": f"Unsupported tool call: {tool_use.name}"}
+
+                wrapped_content = tool_use.input["wrapped_content"]
+                result = _verify_tool(
+                    wrapped_content=wrapped_content,
+                    # The application request context is authoritative. Do not
+                    # let model-supplied tool input change the signing context.
+                    context=context,
+                )
+                if not result.get("valid"):
+                    return {
+                        "success": False,
+                        "error": f"Guard band verification failed: {result.get('error')}",
+                    }
+
+                verified_blocks.add(wrapped_content)
+                messages.append({
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": tool_use.id,
+                        "content": str(result),
+                    }],
+                })
 
             return {"success": False, "error": "Max tool call iterations reached"}
 

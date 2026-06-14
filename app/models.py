@@ -6,7 +6,7 @@ CONTENT_MAX_BYTES = 50_000
 
 class WrapRequest(BaseModel):
     content: str = Field(..., max_length=CONTENT_MAX_BYTES)
-    context: Dict[str, Any] = {}
+    context: Dict[str, Any] = Field(default_factory=dict)
     key_id: str = "key001"
 
 
@@ -18,7 +18,7 @@ class WrapResponse(BaseModel):
 
 class VerifyRequest(BaseModel):
     wrapped_content: str
-    context: Dict[str, Any] = {}
+    context: Dict[str, Any] = Field(default_factory=dict)
 
 
 class VerifyResponse(BaseModel):
@@ -33,7 +33,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., max_length=CONTENT_MAX_BYTES)
     # context must match what was used when wrapping so the LLM's
     # verify tool call uses the correct signing context
-    context: Dict[str, Any] = {}
+    context: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ChatResponse(BaseModel):

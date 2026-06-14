@@ -183,10 +183,10 @@ The local stack includes:
 - audit logging
 - demo integration flow
 
-Run the included manual test script:
+Run the included pytest suite:
 
 ```bash
-python3 test_manual.py
+python3 -m pytest
 ```
 
 ---
@@ -255,9 +255,13 @@ Key files include:
 |---|---|
 | `app/` | FastAPI application and core implementation |
 | `app/crypto.py` | Guard Band wrapping and verification logic |
+| `docs/API_EXAMPLES.md` | Curl examples for wrap, verify, replay checks, and chat |
+| `docs/KEY_MANAGEMENT.md` | Key-management expectations and production gaps |
+| `docs/CONTEXT_SERIALIZATION.md` | Canonical context serialization rules |
+| `docs/REPLAY_PROTECTION.md` | Replay-protection patterns and examples |
 | `docker-compose.yml` | Local multi-service deployment |
 | `requirements.txt` | Python dependencies |
-| `test_manual.py` | Manual end-to-end/security test script |
+| `tests/` | Pytest security, API, and tool-enforcement tests |
 | `QUICKSTART.md` | Setup, demo, and operational notes |
 | `Guard-Bands-Paper.pdf` | Longer technical paper |
 
@@ -281,6 +285,13 @@ A secure production deployment should also consider:
 - structured audit retention
 - model/tool permission boundaries
 - integration testing around every sensitive tool path
+
+More detail:
+
+- [`docs/API_EXAMPLES.md`](docs/API_EXAMPLES.md)
+- [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
+- [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
+- [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)
 
 ---
 
