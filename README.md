@@ -125,7 +125,9 @@ The POC includes:
 
 ## Status
 
-**Working POC** — concept paper complete; implementation running with a full end-to-end test suite passing (12/12 checks including crypto verification, rate limiting, SSO, and audit log persistence).
+**Ready to share** — working POC with a passing end-to-end test suite (12/12 checks: crypto verification, SSO, rate limiting, audit log persistence). Suitable for research, evaluation, and feedback.
+
+> **Not production-ready**: dev secrets are hardcoded defaults (`dev-client-secret-change-in-prod`), Keycloak runs in dev mode without durable storage, and TLS is not configured. See [Production Considerations](./QUICKSTART.md#production-considerations) in QUICKSTART before deploying anywhere real.
 
 📄 **[Read the Full Paper](./Guard-Bands-Paper.pdf)** - Complete technical specification with threat model, implementation considerations, and business case.
 

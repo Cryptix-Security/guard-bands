@@ -4,6 +4,8 @@
 
 This guide walks you through building and running the Guard Bands POC that demonstrates cryptographic protection against prompt injection attacks.
 
+> **Evaluating this project?** The stack runs end-to-end with a single `docker compose up --build`. The one required step before anything starts is generating a `SECRET_KEY` — the app hard-fails at startup without one (see [Configure Environment](#2-configure-environment) below). Everything else has working defaults for local evaluation. Dev secrets are intentional placeholders; see [Production Considerations](#production-considerations) before deploying anywhere real.
+
 ## Prerequisites
 
 - **Python 3.8+**
@@ -30,12 +32,13 @@ pip3 install -r requirements.txt
 ### 2. Configure Environment
 
 ```bash
-# Copy the example environment file
 cp .env.example .env
-
-# Generate a secure secret key
-python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
+
+> **Required — the app will not start without this:** generate a `SECRET_KEY` and paste it into `.env`:
+> ```bash
+> python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+> ```
 
 Edit `.env` and set at minimum:
 
