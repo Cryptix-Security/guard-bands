@@ -43,6 +43,7 @@ Analogy: Guard Bands for prompts are similar to prepared statements for SQL.
 - **Measurable Security**: Audit log captures every wrap, verify, and chat event — MAC failures are attack signals
 - **Performance Conscious**: Crypto operations happen server-side; audit sinks fan out asynchronously
 - **Enterprise Ready**: SSO via oauth2-proxy + Keycloak (OIDC); pluggable audit sinks for Postgres and Splunk HEC
+- **Operationally Resilient**: Audit sinks degrade gracefully — if Postgres is unavailable at startup the app continues with console-only logging rather than failing
 
 ## Advanced Features
 

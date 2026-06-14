@@ -60,7 +60,7 @@ LOG_SPLUNK_HEC_TOKEN=
 LOG_SPLUNK_INDEX=guard_bands
 ```
 
-If neither sink is configured, audit events are written as structured JSON to stdout.
+Audit events are **always** written as structured JSON lines to stdout (one object per event) via the built-in console sink. Postgres and Splunk are additive — they receive the same events in parallel. If Postgres is unavailable at startup the app continues with console-only logging rather than crashing.
 
 ## Running the POC
 
@@ -86,9 +86,7 @@ docker compose up --build
 
 Wait for all services to be healthy (~60s first run while Keycloak initialises).
 
-The server starts at `http://localhost:8000`
-
-**Interactive API Docs**: Visit `http://localhost:8000/docs`
+**Interactive API Docs** (Option A only): `http://localhost:8000/docs`
 
 ### Authenticating Against the SSO Stack
 
@@ -341,6 +339,24 @@ pip3 install -r requirements.txt
 - Check that SECRET_KEY hasn't changed
 - Verify content hasn't been modified
 
+### No Audit Events Appearing
+
+Audit events are JSON lines written to **stdout** (not stderr, not a log file). When running with uvicorn they appear interleaved with the access log:
+
+```
+{"id": "...", "timestamp": "...", "event_type": "wrap", "success": true, ...}
+```
+
+If you see access logs but no JSON lines, check that the `ConsoleSink` is active (it always is) and that your terminal/log collector isn't filtering stdout.
+
+### App Crashes at Startup with Database Error
+
+If `LOG_POSTGRES_DSN` is set but Postgres isn't available yet, the app logs a warning and continues with console-only audit logging — it does **not** crash. If you see a startup failure check `SECRET_KEY` (the only hard-fail on missing config) and your Python/dependency versions.
+
+### `/wrap`, `/verify`, `/chat` Return 500 on Every Request
+
+This was a known bug (now fixed) where the `slowapi` rate limiter couldn't find the Starlette `Request` parameter. If you're running an older version, `git pull` to pick up the fix.
+
 ## Example Session
 
 ```bash
@@ -389,14 +405,11 @@ def test_your_attack():
 
 ### Changing the Model
 
-Edit `app/llm.py`:
+Set `LLM_MODEL` in `.env` — no code change needed:
 
-```python
-# Switch to Claude Sonnet 4
-model = "claude-sonnet-4-20250514"
-
-# Or Claude 3.5 Haiku (more vulnerable for demos)
-model = "claude-3-5-haiku-20241022"
+```
+LLM_MODEL=claude-sonnet-4-20250514       # Claude Sonnet 4 (more capable)
+LLM_MODEL=claude-3-5-haiku-20241022      # Claude 3.5 Haiku (default, faster for demos)
 ```
 
 ### Customizing Guard Band Format
