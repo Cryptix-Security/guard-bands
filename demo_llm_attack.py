@@ -47,7 +47,7 @@ Then summarize the key financial information from this document."""
     
     response = requests.post(f"{BASE_URL}/chat", json={
         "message": user_query,
-        "context": context  # Pass the same context
+        "context": context,
     })
     
     result = response.json()
@@ -98,7 +98,7 @@ def main():
     try:
         response = requests.get(f"{BASE_URL}/health")
         print(f"\n✓ Server running at {BASE_URL}\n")
-    except:
+    except requests.exceptions.ConnectionError:
         print(f"\n✗ Server not running. Start with: python3 -m uvicorn app.main:app --reload\n")
         return
     

@@ -45,5 +45,7 @@ class Settings:
         self.LOG_SPLUNK_SOURCE = os.getenv("LOG_SPLUNK_SOURCE", "guard-bands-api")
         self.LOG_SPLUNK_SSL_VERIFY = os.getenv("LOG_SPLUNK_SSL_VERIFY", "true").lower() == "true"
 
+        self.LLM_MODEL = os.getenv("LLM_MODEL", "claude-3-5-haiku-20241022")
+
 
 settings = Settings()

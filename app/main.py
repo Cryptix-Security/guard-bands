@@ -1,21 +1,34 @@
 import time
 from contextlib import asynccontextmanager
-from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from app.audit import AuditEvent, audit
 from app.config import settings
 from app.crypto import GuardBandCrypto
 from app.llm import llm_service
-from app.models import WrapRequest, WrapResponse, VerifyRequest, VerifyResponse
+from app.models import (
+    ChatRequest, ChatResponse,
+    WrapRequest, WrapResponse,
+    VerifyRequest, VerifyResponse,
+)
+
+
+def _rate_limit_key(request: Request) -> str:
+    # Upgraded to request.state.user_id once SSO middleware sets it
+    return get_remote_address(request)
 
 
 def _client_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For", "")
     return forwarded.split(",")[0].strip() if forwarded else (request.client.host or "unknown")
+
+
+limiter = Limiter(key_func=_rate_limit_key)
 
 
 @asynccontextmanager
@@ -43,6 +56,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Guard Bands POC", version="0.1.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,17 +68,6 @@ app.add_middleware(
 )
 
 crypto = GuardBandCrypto(settings.SECRET_KEY)
-
-
-class ChatRequest(BaseModel):
-    message: str
-    system_prompt: Optional[str] = None
-
-
-class ChatResponse(BaseModel):
-    response: str
-    model: str
-    usage: dict
 
 
 @app.get("/")
@@ -80,6 +84,7 @@ async def root():
 
 
 @app.post("/wrap", response_model=WrapResponse)
+@limiter.limit("60/minute")
 async def wrap_content(request: WrapRequest, req: Request):
     start = time.monotonic()
     ip = _client_ip(req)
@@ -100,7 +105,6 @@ async def wrap_content(request: WrapRequest, req: Request):
             details={
                 "key_id": request.key_id,
                 "content_hash": content_hash,
-                # context keys only — values may contain PII
                 "context_keys": sorted(request.context.keys()),
             },
         ))
@@ -118,6 +122,7 @@ async def wrap_content(request: WrapRequest, req: Request):
 
 
 @app.post("/verify", response_model=VerifyResponse)
+@limiter.limit("120/minute")
 async def verify_content(request: VerifyRequest, req: Request):
     start = time.monotonic()
     ip = _client_ip(req)
@@ -144,14 +149,15 @@ async def verify_content(request: VerifyRequest, req: Request):
 
 
 @app.post("/chat", response_model=ChatResponse)
+@limiter.limit("20/minute")
 async def chat(request: ChatRequest, req: Request):
     start = time.monotonic()
     ip = _client_ip(req)
     guard_bands_present = "⟪INERT:START" in request.message
 
-    result = llm_service.chat(
+    result = await llm_service.chat(
         user_message=request.message,
-        system_prompt=request.system_prompt,
+        context=request.context,
     )
 
     success = result["success"]
