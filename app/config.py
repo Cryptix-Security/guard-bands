@@ -48,9 +48,11 @@ class Settings:
         self.LLM_MODEL = os.getenv("LLM_MODEL", "claude-3-5-haiku-20241022")
 
         # SSO — set by oauth2-proxy headers; disabled by default for local dev
+        # oauth2-proxy --pass-user-headers=true sets X-Forwarded-User / X-Forwarded-Email
+        # (--set-xauthrequest is for nginx auth_request mode only — response headers, not upstream)
         self.SSO_ENABLED = os.getenv("SSO_ENABLED", "false").lower() == "true"
-        self.SSO_HEADER_USER = os.getenv("SSO_HEADER_USER", "X-Auth-Request-User")
-        self.SSO_HEADER_EMAIL = os.getenv("SSO_HEADER_EMAIL", "X-Auth-Request-Email")
+        self.SSO_HEADER_USER = os.getenv("SSO_HEADER_USER", "X-Forwarded-User")
+        self.SSO_HEADER_EMAIL = os.getenv("SSO_HEADER_EMAIL", "X-Forwarded-Email")
 
 
 settings = Settings()

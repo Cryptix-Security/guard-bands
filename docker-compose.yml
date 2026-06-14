@@ -24,12 +24,14 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HEALTH_ENABLED: "true"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     ports:
       - "8080:8080"   # admin console: http://localhost:8080
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health/ready || exit 1"]
+      # Keycloak 24 image has no curl; use bash TCP + /health/ready (requires KC_HEALTH_ENABLED=true)
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && printf 'GET /health/ready HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && timeout 3 cat <&3 | grep -q UP || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 20
@@ -62,10 +64,16 @@ services:
       - --redirect-url=http://localhost:4180/oauth2/callback
       - --email-domain=*
       - --skip-jwt-bearer-tokens=true
-      - --set-xauthrequest=true
+      # --set-xauthrequest sets response headers (nginx auth_request mode only)
+      # --pass-user-headers sets X-Forwarded-User/Email/Groups in upstream requests
+      - --pass-user-headers=true
       - --cookie-secure=false
       - --skip-provider-button=true
       - --insecure-oidc-allow-unverified-email=true
+      # Tokens fetched from localhost:8080 have iss=localhost; proxy discovers via
+      # keycloak:8080 (Docker-internal). Skip the issuer check for dev — in prod
+      # set KC_HOSTNAME_URL to a stable external URL shared by both.
+      - --insecure-oidc-skip-issuer-verification=true
       - --skip-auth-regex=^/health$
     environment:
       OAUTH2_PROXY_CLIENT_SECRET: ${KC_CLIENT_SECRET:-dev-client-secret-change-in-prod}
