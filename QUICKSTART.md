@@ -6,9 +6,10 @@ This guide walks you through building and running the Guard Bands POC that demon
 
 ## Prerequisites
 
-- **Python 3.8+** 
-- **Anthropic API Key** - Using Claude for this POC 
+- **Python 3.8+**
+- **Anthropic API Key** - Using Claude for this POC
 - **Git** (for cloning the repository)
+- **Docker** (optional — for the local Postgres audit log container)
 
 ## Installation
 
@@ -36,26 +37,39 @@ cp .env.example .env
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-Edit `.env` and add:
-- The generated key to `SECRET_KEY`
-- Your Anthropic API key to `ANTHROPIC_API_KEY`
+Edit `.env` and set at minimum:
 
-```bash
-nano .env  # or use your preferred editor
 ```
-
-Your `.env` should look like:
-```
-SECRET_KEY=REAL_KEY_HERE
+SECRET_KEY=<output from the command above>
 ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
-DEBUG=True
+DEBUG=false
+
+# CORS — comma-separated allowed origins
+ALLOWED_ORIGINS=http://localhost:3000
 ```
+
+**Audit logging** (optional but recommended):
+
+```
+# Local Postgres — start with: docker compose up -d
+LOG_POSTGRES_DSN=postgresql://guard_bands:changeme@localhost:5432/guard_bands
+
+# Splunk HEC — leave blank to disable
+LOG_SPLUNK_HEC_URL=https://splunk.example.com:8088
+LOG_SPLUNK_HEC_TOKEN=
+LOG_SPLUNK_INDEX=guard_bands
+```
+
+If neither sink is configured, audit events are written as structured JSON to stdout.
 
 ## Running the POC
 
 ### Start the Server
 
 ```bash
+# Optional: start local Postgres for persistent audit logs
+docker compose up -d
+
 python3 -m uvicorn app.main:app --reload
 ```
 
@@ -161,14 +175,21 @@ guard-bands/
 │   ├── crypto.py        # HMAC signing & verification
 │   ├── llm.py           # Claude integration & tools
 │   ├── models.py        # Pydantic data models
-│   └── config.py        # Environment configuration
+│   ├── config.py        # Environment configuration
+│   ├── audit.py         # AuditEvent + AuditLogger (fan-out)
+│   └── sinks/
+│       ├── base.py      # Abstract AuditSink
+│       ├── console.py   # Structured JSON → stdout (always on)
+│       ├── postgres.py  # PostgreSQL sink (asyncpg)
+│       └── splunk.py    # Splunk HEC sink
 ├── tests/
 │   └── __init__.py
 ├── test_manual.py       # Security test suite
 ├── demo_llm_attack.py   # Interactive LLM demo
+├── docker-compose.yml   # Local Postgres container
 ├── requirements.txt     # Python dependencies
 ├── .env.example         # Configuration template
-└── .gitignore          # Git ignore rules
+└── .gitignore           # Git ignore rules
 ```
 
 ## How It Works
@@ -346,11 +367,11 @@ This is a POC. For production use, consider:
 
 - **Key rotation** - Implement regular SECRET_KEY updates
 - **Key management** - Use proper secrets management (AWS Secrets Manager, etc.)
-- **Monitoring** - Log verification failures for security analysis
-- **Rate limiting** - Prevent abuse of verification endpoint
+- **Rate limiting** - Prevent abuse of wrap/verify endpoints
 - **HTTPS** - Guard bands don't encrypt, always use TLS
-- **Audit trail** - Log all wrap/verify operations
 - **Time expiration** - Add timestamp validation to prevent stale attacks
+- **SSO auth proxy** - Restrict `/wrap` (signing oracle) to authenticated callers
+- **Audit log retention** - Set Postgres table partitioning or Splunk index TTL as appropriate
 
 ## Contributing
 

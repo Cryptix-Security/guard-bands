@@ -40,8 +40,9 @@ Analogy: Guard Bands for prompts are similar to prepared statements for SQL.
 
 - **No Model Changes**: Works with existing LLMs (OpenAI, Anthropic, etc.)
 - **Incremental Deployment**: Apply selectively to high-risk content
-- **Measurable Security**: Clear metrics on prevented injection attempts
-- **Performance Conscious**: Crypto operations happen server-side
+- **Measurable Security**: Audit log captures every wrap, verify, and chat event — MAC failures are attack signals
+- **Performance Conscious**: Crypto operations happen server-side; audit sinks fan out asynchronously
+- **Enterprise Ready**: Pluggable audit sinks for local Postgres (dev) and Splunk HEC (production)
 
 ## Advanced Features
 
@@ -108,6 +109,7 @@ The POC includes:
 - Claude integration with tool use
 - Security test suite
 - Interactive demo showing prompt injection prevention
+- Audit logging with pluggable sinks (local Postgres, Splunk HEC)
 
 ## Status
 
