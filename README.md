@@ -22,6 +22,16 @@ Analogy: Guard Bands for prompts are similar to prepared statements for SQL.
 
 **Key Innovation**: The LLM cannot treat content as "safe data" unless it first calls a verification service that validates the cryptographic signatures. Invalid signatures mean the content should be treated as potentially malicious instructions.
 
+## Current Capabilities
+
+| Layer | What's implemented |
+|---|---|
+| **Core crypto** | HMAC-SHA256 wrapping, SHA-256 content hashing, context binding, tamper detection |
+| **API** | FastAPI `/wrap`, `/verify`, `/chat`; per-user rate limiting (slowapi); 50 KB content limits |
+| **Audit logging** | Structured JSON → stdout (always on); PostgreSQL sink (asyncpg); Splunk HEC sink; async fan-out — sink failures never block requests |
+| **Authentication** | SSO via oauth2-proxy + Keycloak (OIDC); Bearer token API flow; Keycloak user identity (`sub` UUID) flows into every audit event |
+| **Deployment** | Single `docker compose up --build` — Postgres, Keycloak, oauth2-proxy, and the API all wired and health-checked |
+
 ## How It Works
 
 1. **Wrapping**: Untrusted content gets wrapped with cryptographically signed markers
@@ -115,7 +125,7 @@ The POC includes:
 
 ## Status
 
-**Research Phase**: Concept paper completed, implementation in development.
+**Working POC** — concept paper complete; implementation running with a full end-to-end test suite passing (12/12 checks including crypto verification, rate limiting, SSO, and audit log persistence).
 
 📄 **[Read the Full Paper](./Guard-Bands-Paper.pdf)** - Complete technical specification with threat model, implementation considerations, and business case.
 
