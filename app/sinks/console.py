@@ -1,14 +1,17 @@
 import json
-import logging
+import sys
 
 from app.audit import AuditEvent
 from app.sinks.base import AuditSink
 
-logger = logging.getLogger("guard_bands.audit")
-
 
 class ConsoleSink(AuditSink):
-    """Always-on sink — emits structured JSON to stdout via the logging subsystem."""
+    """Always-on sink — writes one JSON object per audit event to stdout.
+
+    Avoids the Python logging subsystem so events always appear regardless of
+    the host logging configuration (uvicorn, gunicorn, etc.).  Pipe stdout to
+    your log aggregator or redirect to a file as needed.
+    """
 
     async def emit(self, event: AuditEvent) -> None:
         record = {
@@ -21,7 +24,4 @@ class ConsoleSink(AuditSink):
             "duration_ms": round(event.duration_ms, 2),
             **event.details,
         }
-        if event.success:
-            logger.info(json.dumps(record))
-        else:
-            logger.warning(json.dumps(record))
+        print(json.dumps(record), file=sys.stdout, flush=True)

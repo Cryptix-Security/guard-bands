@@ -36,10 +36,14 @@ class PostgresSink(AuditSink):
         self._pool: asyncpg.Pool | None = None
 
     async def startup(self) -> None:
-        self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=5)
-        async with self._pool.acquire() as conn:
-            await conn.execute(_SCHEMA)
-        logger.info("PostgreSQL audit sink ready")
+        try:
+            self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=5)
+            async with self._pool.acquire() as conn:
+                await conn.execute(_SCHEMA)
+            logger.info("PostgreSQL audit sink ready")
+        except Exception as e:
+            logger.warning("PostgreSQL audit sink unavailable, disabling: %s", e)
+            self._pool = None
 
     async def shutdown(self) -> None:
         if self._pool:

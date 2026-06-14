@@ -89,14 +89,14 @@ async def root():
 
 @app.post("/wrap", response_model=WrapResponse)
 @limiter.limit("60/minute")
-async def wrap_content(request: WrapRequest, req: Request):
+async def wrap_content(request: Request, body: WrapRequest):
     start = time.monotonic()
-    ip = _client_ip(req)
+    ip = _client_ip(request)
     try:
         wrapped = crypto.wrap_content(
-            content=request.content,
-            context=request.context,
-            key_id=request.key_id,
+            content=body.content,
+            context=body.context,
+            key_id=body.key_id,
         )
         nonce = wrapped.split(":r:")[1].split(":h:")[0]
         content_hash = wrapped.split(":h:")[1].split("⟫")[0]
@@ -105,13 +105,13 @@ async def wrap_content(request: WrapRequest, req: Request):
             event_type="wrap",
             success=True,
             ip=ip,
-            user_id=req.state.user_id,
+            user_id=request.state.user_id,
             duration_ms=(time.monotonic() - start) * 1000,
             details={
-                "key_id": request.key_id,
+                "key_id": body.key_id,
                 "content_hash": content_hash,
-                "context_keys": sorted(request.context.keys()),
-                "user_email": req.state.user_email,
+                "context_keys": sorted(body.context.keys()),
+                "user_email": request.state.user_email,
             },
         ))
         return WrapResponse(wrapped_content=wrapped, nonce=nonce, content_hash=content_hash)
@@ -121,37 +121,37 @@ async def wrap_content(request: WrapRequest, req: Request):
             event_type="wrap",
             success=False,
             ip=ip,
-            user_id=req.state.user_id,
+            user_id=request.state.user_id,
             duration_ms=(time.monotonic() - start) * 1000,
-            details={"error": str(e), "user_email": req.state.user_email},
+            details={"error": str(e), "user_email": request.state.user_email},
         ))
         raise HTTPException(status_code=500, detail=f"Wrapping failed: {str(e)}")
 
 
 @app.post("/verify", response_model=VerifyResponse)
 @limiter.limit("120/minute")
-async def verify_content(request: VerifyRequest, req: Request):
+async def verify_content(request: Request, body: VerifyRequest):
     start = time.monotonic()
-    ip = _client_ip(req)
+    ip = _client_ip(request)
 
     result = crypto.extract_and_verify(
-        wrapped=request.wrapped_content,
-        context=request.context,
+        wrapped=body.wrapped_content,
+        context=body.context,
     )
 
     await audit.log(AuditEvent(
         event_type="verify",
         success=result["valid"],
         ip=ip,
-        user_id=req.state.user_id,
+        user_id=request.state.user_id,
         duration_ms=(time.monotonic() - start) * 1000,
         details={
             "valid": result["valid"],
             "error": result.get("error"),
             "nonce": result.get("nonce"),
             "key_id": result.get("key_id"),
-            "context_keys": sorted(request.context.keys()),
-            "user_email": req.state.user_email,
+            "context_keys": sorted(body.context.keys()),
+            "user_email": request.state.user_email,
         },
     ))
     return VerifyResponse(**result)
@@ -159,14 +159,14 @@ async def verify_content(request: VerifyRequest, req: Request):
 
 @app.post("/chat", response_model=ChatResponse)
 @limiter.limit("20/minute")
-async def chat(request: ChatRequest, req: Request):
+async def chat(request: Request, body: ChatRequest):
     start = time.monotonic()
-    ip = _client_ip(req)
-    guard_bands_present = "⟪INERT:START" in request.message
+    ip = _client_ip(request)
+    guard_bands_present = "⟪INERT:START" in body.message
 
     result = await llm_service.chat(
-        user_message=request.message,
-        context=request.context,
+        user_message=body.message,
+        context=body.context,
     )
 
     success = result["success"]
@@ -174,14 +174,14 @@ async def chat(request: ChatRequest, req: Request):
         event_type="chat",
         success=success,
         ip=ip,
-        user_id=req.state.user_id,
+        user_id=request.state.user_id,
         duration_ms=(time.monotonic() - start) * 1000,
         details={
             "model": result.get("model"),
             "input_tokens": result.get("usage", {}).get("input_tokens"),
             "output_tokens": result.get("usage", {}).get("output_tokens"),
             "guard_bands_in_message": guard_bands_present,
-            "user_email": req.state.user_email,
+            "user_email": request.state.user_email,
             "error": result.get("error") if not success else None,
         },
     ))
