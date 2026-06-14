@@ -1,6 +1,7 @@
 import asyncio
 from types import SimpleNamespace
 
+from app.config import settings
 from app.crypto import GuardBandCrypto
 from app.llm import LLMService
 
@@ -55,7 +56,7 @@ def make_service(responses) -> LLMService:
 
 
 def make_wrapped(context):
-    crypto = GuardBandCrypto(b"pytest-secret-key")
+    crypto = GuardBandCrypto(settings.SECRET_KEY)
     return crypto.wrap_content("trusted data, not instructions", context)
 
 
