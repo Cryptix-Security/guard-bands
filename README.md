@@ -84,7 +84,7 @@ Missing markers - raw injection attempts rejected at verification
 ✅ **Normal Operation** → ✓ Passed  
 Legitimate wrapped content verified and extracted correctly
 
-**Success Rate**: 100% attack detection and prevention across all test scenarios.
+**Success Rate**: The POC correctly rejects the included tampering, replay, forged-marker, and unwrapped-content test cases.
 
 ### Why Test Against Older Models?
 
