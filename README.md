@@ -42,7 +42,7 @@ Analogy: Guard Bands for prompts are similar to prepared statements for SQL.
 - **Incremental Deployment**: Apply selectively to high-risk content
 - **Measurable Security**: Audit log captures every wrap, verify, and chat event — MAC failures are attack signals
 - **Performance Conscious**: Crypto operations happen server-side; audit sinks fan out asynchronously
-- **Enterprise Ready**: Pluggable audit sinks for local Postgres (dev) and Splunk HEC (production)
+- **Enterprise Ready**: SSO via oauth2-proxy + Keycloak (OIDC); pluggable audit sinks for Postgres and Splunk HEC
 
 ## Advanced Features
 
@@ -110,6 +110,7 @@ The POC includes:
 - Security test suite
 - Interactive demo showing prompt injection prevention
 - Audit logging with pluggable sinks (local Postgres, Splunk HEC)
+- SSO via oauth2-proxy + Keycloak with OIDC Bearer token authentication
 
 ## Status
 

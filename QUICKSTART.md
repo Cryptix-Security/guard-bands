@@ -9,7 +9,7 @@ This guide walks you through building and running the Guard Bands POC that demon
 - **Python 3.8+**
 - **Anthropic API Key** - Using Claude for this POC
 - **Git** (for cloning the repository)
-- **Docker** (optional — for the local Postgres audit log container)
+- **Docker + Docker Compose** (optional for local Postgres; required for the full SSO stack)
 
 ## Installation
 
@@ -64,18 +64,59 @@ If neither sink is configured, audit events are written as structured JSON to st
 
 ## Running the POC
 
-### Start the Server
+Two modes — choose based on what you're testing:
+
+### Option A: Direct (no SSO, rapid dev)
 
 ```bash
-# Optional: start local Postgres for persistent audit logs
-docker compose up -d
+# Optional: start Postgres for audit logs
+docker compose up -d postgres
 
 python3 -m uvicorn app.main:app --reload
+# API available at http://localhost:8000
 ```
+
+### Option B: Full stack (SSO enforced)
+
+```bash
+docker compose up --build
+# API entry point: http://localhost:4180  (oauth2-proxy)
+# Keycloak admin:  http://localhost:8080  (admin / $KEYCLOAK_ADMIN_PASSWORD)
+```
+
+Wait for all services to be healthy (~60s first run while Keycloak initialises).
 
 The server starts at `http://localhost:8000`
 
 **Interactive API Docs**: Visit `http://localhost:8000/docs`
+
+### Authenticating Against the SSO Stack
+
+When running Option B, all requests to port 4180 require a valid Bearer token.
+
+**Step 1 — Get a token from Keycloak (password grant for dev/testing):**
+
+```bash
+TOKEN=$(curl -s -X POST \
+  http://localhost:8080/realms/guard-bands/protocol/openid-connect/token \
+  -d "client_id=guard-bands-api" \
+  -d "client_secret=dev-client-secret-change-in-prod" \
+  -d "username=testuser" \
+  -d "password=testpass123" \
+  -d "grant_type=password" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+```
+
+**Step 2 — Call the API with the token:**
+
+```bash
+curl -X POST http://localhost:4180/wrap \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "doc text", "context": {"request_id": "r1", "user": "alice"}}'
+```
+
+For production/enterprise clients, use the `client_credentials` grant type instead of `password`. The test user (`testuser` / `testpass123`) exists only in the dev realm import.
 
 ### Run the Security Tests
 
@@ -171,25 +212,30 @@ curl -X POST "http://localhost:8000/chat" \
 ```
 guard-bands/
 ├── app/
-│   ├── main.py          # FastAPI server & endpoints
-│   ├── crypto.py        # HMAC signing & verification
-│   ├── llm.py           # Claude integration & tools
-│   ├── models.py        # Pydantic data models
-│   ├── config.py        # Environment configuration
-│   ├── audit.py         # AuditEvent + AuditLogger (fan-out)
+│   ├── main.py              # FastAPI server & endpoints
+│   ├── crypto.py            # HMAC signing & verification
+│   ├── llm.py               # Claude integration & tools
+│   ├── models.py            # Pydantic data models
+│   ├── config.py            # Environment configuration
+│   ├── audit.py             # AuditEvent + AuditLogger (fan-out)
+│   ├── middleware/
+│   │   └── auth.py          # SSO header middleware (reads oauth2-proxy headers)
 │   └── sinks/
-│       ├── base.py      # Abstract AuditSink
-│       ├── console.py   # Structured JSON → stdout (always on)
-│       ├── postgres.py  # PostgreSQL sink (asyncpg)
-│       └── splunk.py    # Splunk HEC sink
+│       ├── base.py          # Abstract AuditSink
+│       ├── console.py       # Structured JSON → stdout (always on)
+│       ├── postgres.py      # PostgreSQL sink (asyncpg)
+│       └── splunk.py        # Splunk HEC sink
+├── keycloak/
+│   └── realm-export.json    # Auto-imported realm (client + test user)
 ├── tests/
 │   └── __init__.py
-├── test_manual.py       # Security test suite
-├── demo_llm_attack.py   # Interactive LLM demo
-├── docker-compose.yml   # Local Postgres container
-├── requirements.txt     # Python dependencies
-├── .env.example         # Configuration template
-└── .gitignore           # Git ignore rules
+├── test_manual.py           # Security test suite
+├── demo_llm_attack.py       # Interactive LLM demo
+├── Dockerfile               # App container image
+├── docker-compose.yml       # Full stack: Postgres, Keycloak, oauth2-proxy, app
+├── requirements.txt         # Python dependencies
+├── .env.example             # Configuration template
+└── .gitignore               # Git ignore rules
 ```
 
 ## How It Works
@@ -367,10 +413,12 @@ This is a POC. For production use, consider:
 
 - **Key rotation** - Implement regular SECRET_KEY updates
 - **Key management** - Use proper secrets management (AWS Secrets Manager, etc.)
-- **Rate limiting** - Prevent abuse of wrap/verify endpoints
-- **HTTPS** - Guard bands don't encrypt, always use TLS
-- **Time expiration** - Add timestamp validation to prevent stale attacks
-- **SSO auth proxy** - Restrict `/wrap` (signing oracle) to authenticated callers
+- **Rate limiting** - Per-user limits already in place; tune thresholds for your traffic
+- **HTTPS** - Guard bands don't encrypt; terminate TLS at the load balancer, not oauth2-proxy
+- **Time expiration** - Add timestamp validation to nonces to prevent stale replay attacks
+- **Production secrets** - Replace `dev-client-secret-change-in-prod` and the cookie secret; rotate regularly
+- **Keycloak persistence** - Switch from H2 (dev) to Postgres backend for Keycloak in production
+- **Enterprise IdP** - Connect Keycloak to your LDAP/Active Directory or SAML provider via Keycloak identity federation
 - **Audit log retention** - Set Postgres table partitioning or Splunk index TTL as appropriate
 
 ## Contributing

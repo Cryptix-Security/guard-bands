@@ -11,6 +11,7 @@ from app.audit import AuditEvent, audit
 from app.config import settings
 from app.crypto import GuardBandCrypto
 from app.llm import llm_service
+from app.middleware.auth import SSOHeaderMiddleware
 from app.models import (
     ChatRequest, ChatResponse,
     WrapRequest, WrapResponse,
@@ -19,8 +20,9 @@ from app.models import (
 
 
 def _rate_limit_key(request: Request) -> str:
-    # Upgraded to request.state.user_id once SSO middleware sets it
-    return get_remote_address(request)
+    # SSOHeaderMiddleware sets user_id; fall back to IP for unauthenticated paths
+    user_id = getattr(request.state, "user_id", None)
+    return user_id if user_id else get_remote_address(request)
 
 
 def _client_ip(request: Request) -> str:
@@ -59,6 +61,7 @@ app = FastAPI(title="Guard Bands POC", version="0.1.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Middleware executes in reverse-registration order (last added = first to run)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
@@ -66,6 +69,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SSOHeaderMiddleware)  # runs first: populates request.state.user_id
 
 crypto = GuardBandCrypto(settings.SECRET_KEY)
 
@@ -101,11 +105,13 @@ async def wrap_content(request: WrapRequest, req: Request):
             event_type="wrap",
             success=True,
             ip=ip,
+            user_id=req.state.user_id,
             duration_ms=(time.monotonic() - start) * 1000,
             details={
                 "key_id": request.key_id,
                 "content_hash": content_hash,
                 "context_keys": sorted(request.context.keys()),
+                "user_email": req.state.user_email,
             },
         ))
         return WrapResponse(wrapped_content=wrapped, nonce=nonce, content_hash=content_hash)
@@ -115,8 +121,9 @@ async def wrap_content(request: WrapRequest, req: Request):
             event_type="wrap",
             success=False,
             ip=ip,
+            user_id=req.state.user_id,
             duration_ms=(time.monotonic() - start) * 1000,
-            details={"error": str(e)},
+            details={"error": str(e), "user_email": req.state.user_email},
         ))
         raise HTTPException(status_code=500, detail=f"Wrapping failed: {str(e)}")
 
@@ -136,6 +143,7 @@ async def verify_content(request: VerifyRequest, req: Request):
         event_type="verify",
         success=result["valid"],
         ip=ip,
+        user_id=req.state.user_id,
         duration_ms=(time.monotonic() - start) * 1000,
         details={
             "valid": result["valid"],
@@ -143,6 +151,7 @@ async def verify_content(request: VerifyRequest, req: Request):
             "nonce": result.get("nonce"),
             "key_id": result.get("key_id"),
             "context_keys": sorted(request.context.keys()),
+            "user_email": req.state.user_email,
         },
     ))
     return VerifyResponse(**result)
@@ -165,12 +174,14 @@ async def chat(request: ChatRequest, req: Request):
         event_type="chat",
         success=success,
         ip=ip,
+        user_id=req.state.user_id,
         duration_ms=(time.monotonic() - start) * 1000,
         details={
             "model": result.get("model"),
             "input_tokens": result.get("usage", {}).get("input_tokens"),
             "output_tokens": result.get("usage", {}).get("output_tokens"),
             "guard_bands_in_message": guard_bands_present,
+            "user_email": req.state.user_email,
             "error": result.get("error") if not success else None,
         },
     ))

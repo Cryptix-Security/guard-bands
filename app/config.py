@@ -47,5 +47,10 @@ class Settings:
 
         self.LLM_MODEL = os.getenv("LLM_MODEL", "claude-3-5-haiku-20241022")
 
+        # SSO — set by oauth2-proxy headers; disabled by default for local dev
+        self.SSO_ENABLED = os.getenv("SSO_ENABLED", "false").lower() == "true"
+        self.SSO_HEADER_USER = os.getenv("SSO_HEADER_USER", "X-Auth-Request-User")
+        self.SSO_HEADER_EMAIL = os.getenv("SSO_HEADER_EMAIL", "X-Auth-Request-Email")
+
 
 settings = Settings()
