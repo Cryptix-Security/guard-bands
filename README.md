@@ -6,6 +6,8 @@ Guard Bands is a proof-of-concept security pattern for LLM applications. It wrap
 
 The idea is similar to prepared statements for SQL: separate control from data, then enforce that separation before sensitive operations occur.
 
+The core project is the Guard Bands boundary mechanism. The POC also demonstrates practical controls that many smaller teams want from enterprise LLM security stacks without adopting a heavyweight platform: SSO, identity-aware audit logs, rate limits, Docker Compose deployment, Splunk/PostgreSQL audit sinks, CI, pinned dependencies, and Dependabot maintenance.
+
 ---
 
 ## The Problem
@@ -80,7 +82,26 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 | Authentication | SSO via oauth2-proxy and Keycloak using OIDC |
 | Identity propagation | Keycloak user identity flows into audit events |
 | Deployment | Docker Compose stack for API, Postgres, Keycloak, and oauth2-proxy |
+| Supply-chain hygiene | Pinned dependencies, Dependabot updates, and GitHub Actions CI |
 | Demo | Claude integration showing verification before trusted handling |
+
+---
+
+## Enterprise-Style Controls in the POC
+
+Guard Bands is not an enterprise platform, but the repository includes a working slice of controls commonly expected in enterprise LLM deployments:
+
+- SSO/OIDC front door using Keycloak and oauth2-proxy
+- identity propagation into structured audit events
+- audit fan-out to stdout, PostgreSQL, and Splunk HEC
+- per-user or per-IP API rate limiting
+- Docker Compose stack for local evaluation
+- pytest security and enforcement coverage
+- GitHub Actions CI for Python 3.11 and 3.12
+- pinned dependencies with Dependabot configured for pip and GitHub Actions
+- release notes and a tagged POC release
+
+These features are included to make the boundary mechanism easier to evaluate in realistic application conditions. Production deployments still need environment-specific hardening, key management, authorization design, TLS, retention policy, and operational review.
 
 ---
 
