@@ -8,6 +8,12 @@ The idea is similar to prepared statements for SQL: separate control from data, 
 
 The core project is the Guard Bands boundary mechanism. The POC also demonstrates practical controls that many smaller teams want from enterprise LLM security stacks without adopting a heavyweight platform: SSO, identity-aware audit logs, rate limits, Docker Compose deployment, Splunk/PostgreSQL audit sinks, CI, pinned dependencies, and Dependabot maintenance.
 
+## Official Links
+
+- **Project site:** [guardbands.com](https://guardbands.com/)
+- **Cryptix Security:** [cryptix.com](https://cryptix.com/)
+- **Contact:** [mtoren@cryptix.com](mailto:mtoren@cryptix.com)
+
 ---
 
 ## The Problem
