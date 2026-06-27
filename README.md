@@ -83,6 +83,7 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 |---|---|
 | Core crypto | HMAC-SHA256 wrapping, SHA-256 content hashing, context binding, tamper detection |
 | API | FastAPI `/wrap`, `/verify`, and `/chat` endpoints |
+| FastAPI integration | Route middleware that verifies Guard Band request bodies before handlers run |
 | Limits | Per-user rate limiting and 50 KB content limits |
 | Audit logging | Structured JSON audit events to stdout, PostgreSQL, and Splunk HEC |
 | Authentication | SSO via oauth2-proxy and Keycloak using OIDC |
@@ -102,6 +103,7 @@ Guard Bands is not an enterprise platform, but the repository includes a working
 - audit fan-out to stdout, PostgreSQL, and Splunk HEC
 - per-user or per-IP API rate limiting
 - Docker Compose stack for local evaluation
+- FastAPI middleware for protected tool-input routes
 - pytest security and enforcement coverage
 - GitHub Actions CI for Python 3.11 and 3.12
 - CodeQL workflow for code scanning
@@ -183,6 +185,9 @@ The included tests exercise:
 ✓ content tampering detection
 ✓ forged marker rejection
 ✓ unwrapped content rejection
+✓ malformed marker extraction hardening
+✓ unsupported tool-call rejection
+✓ FastAPI middleware enforcement
 ✓ normal wrapped-content verification
 ```
 
@@ -214,7 +219,19 @@ The local stack includes:
 Run the included pytest suite:
 
 ```bash
-python3 -m pytest
+make test
+```
+
+Run the API-key-free FastAPI demo:
+
+```bash
+make demo
+```
+
+Run parser and verification micro-benchmarks:
+
+```bash
+make bench
 ```
 
 ---
@@ -283,9 +300,11 @@ Key files include:
 |---|---|
 | `app/` | FastAPI application and core implementation |
 | `app/crypto.py` | Guard Band wrapping and verification logic |
+| `docs/ARCHITECTURE.md` | Architecture, trust boundaries, and threat model |
 | `docs/API_EXAMPLES.md` | Curl examples for wrap, verify, replay checks, and chat |
 | `docs/DEMO.md` | Visual flow and terminal-style demo |
-| `docs/INTEGRATIONS.md` | RAG integration helper example |
+| `docs/INTEGRATIONS.md` | FastAPI and RAG integration examples |
+| `docs/LIMITS.md` | Parser, API, replay, and benchmark guidance |
 | `docs/KEY_MANAGEMENT.md` | Key-management expectations and production gaps |
 | `docs/CONTEXT_SERIALIZATION.md` | Canonical context serialization rules |
 | `docs/REPLAY_PROTECTION.md` | Replay-protection patterns and examples |
@@ -293,6 +312,7 @@ Key files include:
 | `requirements.txt` | Python dependencies |
 | `requirements-dev.txt` | Test/development dependencies |
 | `pyproject.toml` | Python package metadata |
+| `Makefile` | Local test, demo, benchmark, and run shortcuts |
 | `tests/` | Pytest security, API, and tool-enforcement tests |
 | `SECURITY.md` | Vulnerability reporting policy |
 | `CONTRIBUTING.md` | Contribution guidance |
@@ -324,8 +344,10 @@ A secure production deployment should also consider:
 More detail:
 
 - [`docs/API_EXAMPLES.md`](docs/API_EXAMPLES.md)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/DEMO.md`](docs/DEMO.md)
 - [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)
+- [`docs/LIMITS.md`](docs/LIMITS.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
 - [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
 - [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Added FastAPI Guard Band verification middleware for protected request-body routes.
+- Added an API-key-free FastAPI demo runnable with `make demo`.
+- Added parser and verification micro-benchmarks runnable with `make bench`.
+- Added architecture/threat-model documentation and operational limits guidance.
+- Expanded integration documentation around FastAPI instead of proxy-based integrations.
+- Added tests for FastAPI middleware enforcement and unsupported sensitive tool calls.
+
 ## v0.1.0-poc
 
 - Converted security checks from a manual script into a pytest suite.

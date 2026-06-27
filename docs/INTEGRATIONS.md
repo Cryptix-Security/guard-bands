@@ -1,6 +1,45 @@
 # Integration Examples
 
-Guard Bands can sit between retrieval and model invocation. The first integration helper is a framework-neutral RAG/document middleware example in `integrations/rag_middleware.py`.
+Guard Bands can sit between retrieval and model invocation, or directly in front of FastAPI routes that should never process unverified tool input.
+
+This repository currently includes:
+
+- `integrations/rag_middleware.py` for framework-neutral RAG/document wrapping
+- `integrations/fastapi_guard.py` for FastAPI request verification middleware
+
+## FastAPI Middleware
+
+Use `GuardBandVerificationMiddleware` when a route expects a JSON body with `wrapped_content` and `context`, and the handler should run only after verification succeeds.
+
+```python
+from fastapi import FastAPI, Request
+
+from app.crypto import GuardBandCrypto
+from integrations.fastapi_guard import (
+    GuardBandVerificationMiddleware,
+    guard_band_verification,
+)
+
+app = FastAPI()
+crypto = GuardBandCrypto(b"dev-secret")
+
+app.add_middleware(
+    GuardBandVerificationMiddleware,
+    crypto=crypto,
+    required_paths={"/protected-tool-input"},
+    max_body_bytes=50_000,
+)
+
+@app.post("/protected-tool-input")
+async def protected_tool_input(payload: dict, request: Request):
+    verification = guard_band_verification(request)
+    return {
+        "verified": verification["valid"],
+        "content": verification["content"],
+    }
+```
+
+The middleware verifies before the route handler runs. Invalid content returns HTTP 400, oversized bodies are rejected before route parsing, and valid verification details are attached to `request.state.guard_band_verification`. Replayed content also returns HTTP 400 when the middleware is configured with `replay_protection=True`.
 
 ## RAG Middleware Shape
 
@@ -44,6 +83,4 @@ The model still sees document text, but the application now has a per-document c
 
 - LangChain document transformer
 - LlamaIndex node postprocessor
-- OpenAI-compatible proxy for `/v1/chat/completions`
 - MCP server for wrapping and verifying resources
-

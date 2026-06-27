@@ -2,6 +2,18 @@
 
 This walkthrough shows the intended control flow for untrusted retrieved content.
 
+Run the local FastAPI demo without an LLM API key:
+
+```bash
+make demo
+```
+
+Run parser and verification micro-benchmarks:
+
+```bash
+make bench
+```
+
 ```mermaid
 sequenceDiagram
     participant U as User
@@ -66,4 +78,3 @@ sequenceDiagram
 - replayed nonces when replay protection is enabled
 - model responses that skip verification
 - model tool calls that try to override application context
-

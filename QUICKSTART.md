@@ -134,7 +134,7 @@ The security checks are now a standard pytest suite and do not require the serve
 ```bash
 cd guard-bands
 source venv/bin/activate
-python3 -m pytest
+make test
 ```
 
 **What it tests:**
@@ -147,6 +147,22 @@ python3 -m pytest
 - ✅ Nonce tampering protection
 - ✅ API wrap/verify flows
 - ✅ LLM tool-call enforcement
+- ✅ FastAPI middleware enforcement
+- ✅ malformed marker extraction hardening
+
+### Run the FastAPI Demo
+
+This demo does not require an LLM API key. It exercises the FastAPI app through its test client and shows successful verification, tamper rejection, and wrong-context replay rejection.
+
+```bash
+make demo
+```
+
+### Run Parser Benchmarks
+
+```bash
+make bench
+```
 
 ### Run the LLM Demo
 
@@ -242,8 +258,11 @@ guard-bands/
 │   └── realm-export.json    # Auto-imported realm (client + test user)
 ├── tests/                   # Pytest security, API, and tool-enforcement tests
 ├── docs/                    # API examples and operational guidance
+├── integrations/            # FastAPI and RAG integration helpers
+├── scripts/                 # Local demo and benchmark scripts
 ├── test_manual.py           # Legacy wrapper for python3 -m pytest
 ├── demo_llm_attack.py       # Interactive LLM demo
+├── Makefile                 # Local test, demo, benchmark, and run shortcuts
 ├── Dockerfile               # App container image
 ├── docker-compose.yml       # Full stack: Postgres, Keycloak, oauth2-proxy, app
 ├── requirements.txt         # Runtime Python dependencies
@@ -455,6 +474,9 @@ This is a POC. For production use, consider:
 See also:
 
 - [`docs/API_EXAMPLES.md`](docs/API_EXAMPLES.md)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)
+- [`docs/LIMITS.md`](docs/LIMITS.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
 - [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
 - [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)
