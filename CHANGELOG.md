@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added SQLite-backed persistent replay ledger configuration for single-node pilots.
+- Added authorization helper examples for role, tenant, user, and policy-path checks.
+- Added a reference support-ticket FastAPI app and `make reference-demo`.
+- Added production deployment, authorization, and reference-app documentation.
 - Added FastAPI Guard Band verification middleware for protected request-body routes.
 - Added an API-key-free FastAPI demo runnable with `make demo`.
 - Added parser and verification micro-benchmarks runnable with `make bench`.

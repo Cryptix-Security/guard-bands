@@ -102,6 +102,10 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:4180}
       LLM_MODEL: ${LLM_MODEL:-claude-3-5-haiku-20241022}
       SSO_ENABLED: "true"
+      REPLAY_PROTECTION_ENABLED: ${REPLAY_PROTECTION_ENABLED:-false}
+      REPLAY_LEDGER_BACKEND: ${REPLAY_LEDGER_BACKEND:-memory}
+      REPLAY_LEDGER_PATH: ${REPLAY_LEDGER_PATH:-data/replay-ledger.sqlite3}
+      REPLAY_WINDOW_SECONDS: ${REPLAY_WINDOW_SECONDS:-900}
       LOG_POSTGRES_DSN: postgresql://guard_bands:${POSTGRES_PASSWORD:-changeme}@postgres:5432/guard_bands
       LOG_SPLUNK_HEC_URL: ${LOG_SPLUNK_HEC_URL:-}
       LOG_SPLUNK_HEC_TOKEN: ${LOG_SPLUNK_HEC_TOKEN:-}
@@ -112,6 +116,8 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+    volumes:
+      - app_data:/app/data
     networks:
       - internal
 
@@ -121,3 +127,4 @@ networks:
 
 volumes:
   postgres_data:
+  app_data:

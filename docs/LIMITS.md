@@ -12,7 +12,7 @@ This POC intentionally keeps limits conservative. They are designed to make the 
 | MAC | HMAC-SHA256 over canonical JSON payload |
 | Nonce | random URL-safe nonce, validated as 16-128 URL-safe characters |
 | Key id | 1-64 characters, limited to letters, numbers, `_`, `.`, and `-` |
-| Replay ledger | optional in-memory ledger for POC use |
+| Replay ledger | optional in-memory ledger or SQLite-backed persistent ledger |
 | Parser | manual marker scanning for embedded blocks; strict full-block parsing for verification |
 
 ## Parser Behavior
@@ -53,5 +53,6 @@ Numbers are local-machine diagnostics, not production capacity claims. If this i
 - Keep content limits explicit at API boundaries.
 - Prefer context values with stable identifiers rather than large arbitrary objects.
 - Use a shared replay store if the API runs with multiple workers or replicas.
+- Use SQLite replay storage only for single-node pilots.
 - Treat verification as a gate before sensitive actions, not as a substitute for authorization.
 - Monitor verification failures by tenant, route, policy path, and key id.

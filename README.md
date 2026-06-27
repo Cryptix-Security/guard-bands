@@ -84,6 +84,7 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 | Core crypto | HMAC-SHA256 wrapping, SHA-256 content hashing, context binding, tamper detection |
 | API | FastAPI `/wrap`, `/verify`, and `/chat` endpoints |
 | FastAPI integration | Route middleware that verifies Guard Band request bodies before handlers run |
+| Reference app | Support-ticket workflow with verification plus authorization checks |
 | Limits | Per-user rate limiting and 50 KB content limits |
 | Audit logging | Structured JSON audit events to stdout, PostgreSQL, and Splunk HEC |
 | Authentication | SSO via oauth2-proxy and Keycloak using OIDC |
@@ -104,6 +105,8 @@ Guard Bands is not an enterprise platform, but the repository includes a working
 - per-user or per-IP API rate limiting
 - Docker Compose stack for local evaluation
 - FastAPI middleware for protected tool-input routes
+- persistent SQLite replay ledger for single-node pilots
+- reference support workflow with explicit authorization checks
 - pytest security and enforcement coverage
 - GitHub Actions CI for Python 3.11 and 3.12
 - CodeQL workflow for code scanning
@@ -228,6 +231,12 @@ Run the API-key-free FastAPI demo:
 make demo
 ```
 
+Run the reference support workflow:
+
+```bash
+make reference-demo
+```
+
 Run parser and verification micro-benchmarks:
 
 ```bash
@@ -299,13 +308,18 @@ Key files include:
 | File | Purpose |
 |---|---|
 | `app/` | FastAPI application and core implementation |
+| `app/authorization.py` | Minimal role/action authorization example |
 | `app/crypto.py` | Guard Band wrapping and verification logic |
+| `reference_app/` | Small support-ticket reference workflow |
+| `docs/AUTHORIZATION.md` | Authorization pattern for sensitive tool calls |
 | `docs/ARCHITECTURE.md` | Architecture, trust boundaries, and threat model |
 | `docs/API_EXAMPLES.md` | Curl examples for wrap, verify, replay checks, and chat |
 | `docs/DEMO.md` | Visual flow and terminal-style demo |
 | `docs/INTEGRATIONS.md` | FastAPI and RAG integration examples |
 | `docs/LIMITS.md` | Parser, API, replay, and benchmark guidance |
 | `docs/KEY_MANAGEMENT.md` | Key-management expectations and production gaps |
+| `docs/PRODUCTION_DEPLOYMENT.md` | Small-company pilot deployment checklist |
+| `docs/REFERENCE_APP.md` | Reference support app walkthrough |
 | `docs/CONTEXT_SERIALIZATION.md` | Canonical context serialization rules |
 | `docs/REPLAY_PROTECTION.md` | Replay-protection patterns and examples |
 | `docker-compose.yml` | Local multi-service deployment |
@@ -344,11 +358,14 @@ A secure production deployment should also consider:
 More detail:
 
 - [`docs/API_EXAMPLES.md`](docs/API_EXAMPLES.md)
+- [`docs/AUTHORIZATION.md`](docs/AUTHORIZATION.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/DEMO.md`](docs/DEMO.md)
 - [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)
 - [`docs/LIMITS.md`](docs/LIMITS.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
+- [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md)
+- [`docs/REFERENCE_APP.md`](docs/REFERENCE_APP.md)
 - [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
 - [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)
 

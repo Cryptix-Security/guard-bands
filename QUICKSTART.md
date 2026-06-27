@@ -56,6 +56,8 @@ ALLOWED_ORIGINS=http://localhost:3000
 
 # Optional replay ledger for single-use verification semantics
 REPLAY_PROTECTION_ENABLED=false
+REPLAY_LEDGER_BACKEND=memory
+REPLAY_LEDGER_PATH=data/replay-ledger.sqlite3
 REPLAY_WINDOW_SECONDS=900
 ```
 
@@ -149,6 +151,8 @@ make test
 - ✅ LLM tool-call enforcement
 - ✅ FastAPI middleware enforcement
 - ✅ malformed marker extraction hardening
+- ✅ persistent SQLite replay ledger
+- ✅ reference app authorization flow
 
 ### Run the FastAPI Demo
 
@@ -156,6 +160,14 @@ This demo does not require an LLM API key. It exercises the FastAPI app through 
 
 ```bash
 make demo
+```
+
+### Run the Reference App Demo
+
+This demo shows a support-ticket workflow where Guard Bands verification must pass before authorization decides whether a tool action is allowed.
+
+```bash
+make reference-demo
 ```
 
 ### Run Parser Benchmarks
@@ -246,6 +258,8 @@ guard-bands/
 │   ├── llm.py               # Claude integration & tools
 │   ├── models.py            # Pydantic data models
 │   ├── config.py            # Environment configuration
+│   ├── authorization.py     # Example role/action authorization checks
+│   ├── replay.py            # Memory and SQLite replay ledgers
 │   ├── audit.py             # AuditEvent + AuditLogger (fan-out)
 │   ├── middleware/
 │   │   └── auth.py          # SSO header middleware (reads oauth2-proxy headers)
@@ -259,6 +273,7 @@ guard-bands/
 ├── tests/                   # Pytest security, API, and tool-enforcement tests
 ├── docs/                    # API examples and operational guidance
 ├── integrations/            # FastAPI and RAG integration helpers
+├── reference_app/           # Small support-ticket reference workflow
 ├── scripts/                 # Local demo and benchmark scripts
 ├── test_manual.py           # Legacy wrapper for python3 -m pytest
 ├── demo_llm_attack.py       # Interactive LLM demo
@@ -462,7 +477,8 @@ This is a POC. For production use, consider:
 - **Key rotation** - Implement regular SECRET_KEY updates
 - **Key management** - Use proper secrets management (AWS Secrets Manager, etc.)
 - **Canonical context design** - Keep context fields stable and security-relevant
-- **Replay ledgers** - Store consumed nonces when payloads must be single-use
+- **Replay ledgers** - Use `sqlite` for a single-node pilot or a shared Redis/Postgres ledger for multiple replicas
+- **Authorization** - Check tenant, user, role, and policy path before sensitive tools run
 - **Rate limiting** - Per-user limits already in place; tune thresholds for your traffic
 - **HTTPS** - Guard bands don't encrypt; terminate TLS at the load balancer, not oauth2-proxy
 - **Time expiration** - Add timestamp validation to nonces to prevent stale replay attacks
@@ -474,10 +490,13 @@ This is a POC. For production use, consider:
 See also:
 
 - [`docs/API_EXAMPLES.md`](docs/API_EXAMPLES.md)
+- [`docs/AUTHORIZATION.md`](docs/AUTHORIZATION.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)
 - [`docs/LIMITS.md`](docs/LIMITS.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
+- [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md)
+- [`docs/REFERENCE_APP.md`](docs/REFERENCE_APP.md)
 - [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
 - [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)
 

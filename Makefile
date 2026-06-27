@@ -1,4 +1,4 @@
-.PHONY: install-dev test demo bench run
+.PHONY: install-dev test demo reference-demo bench run
 
 install-dev:
 	python -m pip install -r requirements-dev.txt
@@ -8,6 +8,9 @@ test:
 
 demo:
 	python scripts/fastapi_demo.py
+
+reference-demo:
+	python scripts/reference_app_demo.py
 
 bench:
 	python scripts/benchmark_parser.py

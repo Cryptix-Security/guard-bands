@@ -4,7 +4,7 @@ from app.crypto import (
     canonical_context,
     extract_guard_band_blocks,
 )
-from app.replay import NonceReplayLedger
+from app.replay import NonceReplayLedger, SQLiteReplayLedger
 
 
 def make_crypto() -> GuardBandCrypto:
@@ -196,6 +196,26 @@ def test_nonce_replay_ledger_rejects_reuse_in_same_context():
 
 def test_nonce_replay_ledger_expires_entries():
     ledger = NonceReplayLedger(ttl_seconds=10)
+    context = {"request_id": "req-001"}
+
+    assert ledger.consume(context, "key001", "nonce-value", now=1000) is True
+    assert ledger.consume(context, "key001", "nonce-value", now=1005) is False
+    assert ledger.consume(context, "key001", "nonce-value", now=1011) is True
+
+
+def test_sqlite_replay_ledger_persists_consumed_nonces(tmp_path):
+    ledger_path = tmp_path / "replay.sqlite3"
+    context = {"request_id": "req-001"}
+
+    first = SQLiteReplayLedger(str(ledger_path), ttl_seconds=60)
+    second = SQLiteReplayLedger(str(ledger_path), ttl_seconds=60)
+
+    assert first.consume(context, "key001", "nonce-value", now=1000) is True
+    assert second.consume(context, "key001", "nonce-value", now=1001) is False
+
+
+def test_sqlite_replay_ledger_expires_entries(tmp_path):
+    ledger = SQLiteReplayLedger(str(tmp_path / "replay.sqlite3"), ttl_seconds=10)
     context = {"request_id": "req-001"}
 
     assert ledger.consume(context, "key001", "nonce-value", now=1000) is True

@@ -16,6 +16,8 @@ class Settings:
     DEBUG: bool
     ALLOWED_ORIGINS: list[str]
     REPLAY_PROTECTION_ENABLED: bool
+    REPLAY_LEDGER_BACKEND: str
+    REPLAY_LEDGER_PATH: str
     REPLAY_WINDOW_SECONDS: int
 
     # Audit — PostgreSQL
@@ -40,6 +42,8 @@ class Settings:
         self.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
         self.DEBUG = os.getenv("DEBUG", "false").lower() == "true"
         self.REPLAY_PROTECTION_ENABLED = os.getenv("REPLAY_PROTECTION_ENABLED", "false").lower() == "true"
+        self.REPLAY_LEDGER_BACKEND = os.getenv("REPLAY_LEDGER_BACKEND", "memory")
+        self.REPLAY_LEDGER_PATH = os.getenv("REPLAY_LEDGER_PATH", "data/replay-ledger.sqlite3")
         self.REPLAY_WINDOW_SECONDS = int(os.getenv("REPLAY_WINDOW_SECONDS", "900"))
 
         origins_raw = os.getenv("ALLOWED_ORIGINS", "")
