@@ -39,7 +39,7 @@ Prompt wording alone is not a security boundary.
 Guard Bands wraps untrusted content with cryptographically signed markers:
 
 ```text
-⟪INERT:START:r:b64(nonce):h:b64(hash)⟫
+⟪INERT:START:v:1:r:b64url(nonce):h:b64(hash)⟫
 [Untrusted user content goes here]
 ⟪INERT:END:mac:b64(mac):kid:keyid⟫
 ```
@@ -88,7 +88,7 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 | Authentication | SSO via oauth2-proxy and Keycloak using OIDC |
 | Identity propagation | Keycloak user identity flows into audit events |
 | Deployment | Docker Compose stack for API, Postgres, Keycloak, and oauth2-proxy |
-| Supply-chain hygiene | Pinned dependencies, Dependabot updates, and GitHub Actions CI |
+| Supply-chain hygiene | Pinned dependencies, Dependabot updates, GitHub Actions CI, and CodeQL scanning |
 | Demo | Claude integration showing verification before trusted handling |
 
 ---
@@ -104,6 +104,7 @@ Guard Bands is not an enterprise platform, but the repository includes a working
 - Docker Compose stack for local evaluation
 - pytest security and enforcement coverage
 - GitHub Actions CI for Python 3.11 and 3.12
+- CodeQL workflow for code scanning
 - pinned dependencies with Dependabot configured for pip and GitHub Actions
 - release notes and a tagged POC release
 
@@ -283,12 +284,18 @@ Key files include:
 | `app/` | FastAPI application and core implementation |
 | `app/crypto.py` | Guard Band wrapping and verification logic |
 | `docs/API_EXAMPLES.md` | Curl examples for wrap, verify, replay checks, and chat |
+| `docs/DEMO.md` | Visual flow and terminal-style demo |
+| `docs/INTEGRATIONS.md` | RAG integration helper example |
 | `docs/KEY_MANAGEMENT.md` | Key-management expectations and production gaps |
 | `docs/CONTEXT_SERIALIZATION.md` | Canonical context serialization rules |
 | `docs/REPLAY_PROTECTION.md` | Replay-protection patterns and examples |
 | `docker-compose.yml` | Local multi-service deployment |
 | `requirements.txt` | Python dependencies |
+| `requirements-dev.txt` | Test/development dependencies |
+| `pyproject.toml` | Python package metadata |
 | `tests/` | Pytest security, API, and tool-enforcement tests |
+| `SECURITY.md` | Vulnerability reporting policy |
+| `CONTRIBUTING.md` | Contribution guidance |
 | `QUICKSTART.md` | Setup, demo, and operational notes |
 | `Guard-Bands-Paper.md` | Editable Markdown source for the research paper |
 | `Guard-Bands-Paper.pdf` | Longer technical paper |
@@ -317,6 +324,8 @@ A secure production deployment should also consider:
 More detail:
 
 - [`docs/API_EXAMPLES.md`](docs/API_EXAMPLES.md)
+- [`docs/DEMO.md`](docs/DEMO.md)
+- [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
 - [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
 - [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)

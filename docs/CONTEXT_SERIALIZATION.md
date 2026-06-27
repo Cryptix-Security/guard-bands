@@ -49,3 +49,10 @@ Do not include unstable values that legitimately change between wrap and verify 
 
 Changing canonicalization changes MAC input. If this POC is extended into a deployed system, treat serialization rules as versioned protocol behavior and include the serializer version in signed metadata before supporting multiple formats.
 
+The current marker format includes protocol version `v:1`:
+
+```text
+⟪INERT:START:v:1:r:nonce:h:hash⟫
+content
+⟪INERT:END:mac:signature:kid:key001⟫
+```

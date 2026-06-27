@@ -25,8 +25,11 @@ cd guard-bands
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Install runtime dependencies
 pip3 install -r requirements.txt
+
+# Install test/development dependencies
+pip3 install -r requirements-dev.txt
 ```
 
 ### 2. Configure Environment
@@ -44,11 +47,16 @@ Edit `.env` and set at minimum:
 
 ```
 SECRET_KEY=<output from the command above>
+KEY_ID=key001
 ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
 DEBUG=false
 
 # CORS — comma-separated allowed origins
 ALLOWED_ORIGINS=http://localhost:3000
+
+# Optional replay ledger for single-use verification semantics
+REPLAY_PROTECTION_ENABLED=false
+REPLAY_WINDOW_SECONDS=900
 ```
 
 **Audit logging** (optional but recommended):
@@ -170,7 +178,7 @@ curl -X POST "http://localhost:8000/wrap" \
 **Response:**
 ```json
 {
-  "wrapped_content": "⟪INERT:START:r:nonce:h:hash⟫\nUser document content here\n⟪INERT:END:mac:signature:kid:key001⟫",
+  "wrapped_content": "⟪INERT:START:v:1:r:nonce:h:hash⟫\nUser document content here\n⟪INERT:END:mac:signature:kid:key001⟫",
   "nonce": "abc123...",
   "content_hash": "xyz789..."
 }
@@ -184,7 +192,7 @@ Verify cryptographic signatures:
 curl -X POST "http://localhost:8000/verify" \
   -H "Content-Type: application/json" \
   -d '{
-    "wrapped_content": "⟪INERT:START:...⟫content⟪INERT:END:...⟫",
+    "wrapped_content": "⟪INERT:START:v:1:...⟫content⟪INERT:END:...⟫",
     "context": {"request_id": "req-001", "user": "alice"}
   }'
 ```
@@ -207,7 +215,7 @@ Send queries to Claude with guard band awareness:
 curl -X POST "http://localhost:8000/chat" \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "Analyze this document: ⟪INERT:START:...⟫content⟪INERT:END:...⟫",
+    "message": "Analyze this document: ⟪INERT:START:v:1:...⟫content⟪INERT:END:...⟫",
     "context": {"request_id": "req-001", "user": "alice"}
   }'
 ```
@@ -238,7 +246,9 @@ guard-bands/
 ├── demo_llm_attack.py       # Interactive LLM demo
 ├── Dockerfile               # App container image
 ├── docker-compose.yml       # Full stack: Postgres, Keycloak, oauth2-proxy, app
-├── requirements.txt         # Python dependencies
+├── requirements.txt         # Runtime Python dependencies
+├── requirements-dev.txt     # Test/development dependencies
+├── pyproject.toml           # Python package metadata
 ├── .env.example             # Configuration template
 └── .gitignore               # Git ignore rules
 ```

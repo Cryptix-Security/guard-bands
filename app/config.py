@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 from dotenv import load_dotenv
 
@@ -9,9 +10,13 @@ load_dotenv()
 class Settings:
     # Core
     SECRET_KEY: bytes
+    KEY_ID: str
+    GUARD_BAND_KEYS: dict[str, bytes]
     ANTHROPIC_API_KEY: str
     DEBUG: bool
     ALLOWED_ORIGINS: list[str]
+    REPLAY_PROTECTION_ENABLED: bool
+    REPLAY_WINDOW_SECONDS: int
 
     # Audit — PostgreSQL
     LOG_POSTGRES_DSN: str
@@ -29,9 +34,13 @@ class Settings:
             sys.exit("FATAL: SECRET_KEY environment variable is not set. "
                      "Generate one with: python3 -c \"import secrets; print(secrets.token_urlsafe(32))\"")
         self.SECRET_KEY = raw_key.encode("utf-8")
+        self.KEY_ID = os.getenv("KEY_ID", "key001")
+        self.GUARD_BAND_KEYS = self._load_guard_band_keys(raw_key)
 
         self.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
         self.DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+        self.REPLAY_PROTECTION_ENABLED = os.getenv("REPLAY_PROTECTION_ENABLED", "false").lower() == "true"
+        self.REPLAY_WINDOW_SECONDS = int(os.getenv("REPLAY_WINDOW_SECONDS", "900"))
 
         origins_raw = os.getenv("ALLOWED_ORIGINS", "")
         self.ALLOWED_ORIGINS = [o.strip() for o in origins_raw.split(",") if o.strip()]
@@ -53,6 +62,26 @@ class Settings:
         self.SSO_ENABLED = os.getenv("SSO_ENABLED", "false").lower() == "true"
         self.SSO_HEADER_USER = os.getenv("SSO_HEADER_USER", "X-Forwarded-User")
         self.SSO_HEADER_EMAIL = os.getenv("SSO_HEADER_EMAIL", "X-Forwarded-Email")
+
+    def _load_guard_band_keys(self, fallback_key: str) -> dict[str, bytes]:
+        raw_keys = os.getenv("GUARD_BAND_KEYS", "")
+        if not raw_keys:
+            return {self.KEY_ID: fallback_key.encode("utf-8")}
+
+        try:
+            parsed = json.loads(raw_keys)
+        except json.JSONDecodeError as e:
+            sys.exit(f"FATAL: GUARD_BAND_KEYS must be a JSON object: {e}")
+
+        if not isinstance(parsed, dict) or not parsed:
+            sys.exit("FATAL: GUARD_BAND_KEYS must be a non-empty JSON object")
+
+        keys: dict[str, bytes] = {}
+        for key_id, key_value in parsed.items():
+            if not isinstance(key_id, str) or not isinstance(key_value, str):
+                sys.exit("FATAL: GUARD_BAND_KEYS must map string key ids to string secrets")
+            keys[key_id] = key_value.encode("utf-8")
+        return keys
 
 
 settings = Settings()

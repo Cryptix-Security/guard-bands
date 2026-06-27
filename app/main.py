@@ -9,7 +9,7 @@ from slowapi.util import get_remote_address
 
 from app.audit import AuditEvent, audit
 from app.config import settings
-from app.crypto import GuardBandCrypto
+from app.crypto import GuardBandCrypto, StaticKeyResolver
 from app.llm import llm_service
 from app.middleware.auth import SSOHeaderMiddleware
 from app.models import (
@@ -17,6 +17,7 @@ from app.models import (
     WrapRequest, WrapResponse,
     VerifyRequest, VerifyResponse,
 )
+from app.replay import apply_replay_protection
 
 
 def _rate_limit_key(request: Request) -> str:
@@ -71,7 +72,9 @@ app.add_middleware(
 )
 app.add_middleware(SSOHeaderMiddleware)  # runs first: populates request.state.user_id
 
-crypto = GuardBandCrypto(settings.SECRET_KEY)
+crypto = GuardBandCrypto(
+    key_resolver=StaticKeyResolver(settings.GUARD_BAND_KEYS, settings.KEY_ID)
+)
 
 
 @app.get("/")
@@ -116,6 +119,17 @@ async def wrap_content(request: Request, body: WrapRequest):
         ))
         return WrapResponse(wrapped_content=wrapped, nonce=nonce, content_hash=content_hash)
 
+    except ValueError as e:
+        await audit.log(AuditEvent(
+            event_type="wrap",
+            success=False,
+            ip=ip,
+            user_id=request.state.user_id,
+            duration_ms=(time.monotonic() - start) * 1000,
+            details={"error": str(e), "user_email": request.state.user_email},
+        ))
+        raise HTTPException(status_code=400, detail=str(e))
+
     except Exception as e:
         await audit.log(AuditEvent(
             event_type="wrap",
@@ -138,6 +152,7 @@ async def verify_content(request: Request, body: VerifyRequest):
         wrapped=body.wrapped_content,
         context=body.context,
     )
+    result = apply_replay_protection(result, body.context)
 
     await audit.log(AuditEvent(
         event_type="verify",

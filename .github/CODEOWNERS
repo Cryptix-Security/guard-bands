@@ -1,0 +1,12 @@
+# Create a GitHub team with write access, then uncomment and replace
+# @Cryptix-Security/owners with the actual maintainer team slug.
+#
+# * @Cryptix-Security/owners
+# /.github/ @Cryptix-Security/owners
+# /app/crypto.py @Cryptix-Security/owners
+# /app/llm.py @Cryptix-Security/owners
+# /app/replay.py @Cryptix-Security/owners
+# /app/middleware/ @Cryptix-Security/owners
+# /requirements*.txt @Cryptix-Security/owners
+# /pyproject.toml @Cryptix-Security/owners
+# /docker-compose.yml @Cryptix-Security/owners

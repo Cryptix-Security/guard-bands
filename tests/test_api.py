@@ -46,3 +46,17 @@ def test_verify_api_rejects_replayed_context():
     assert verify_response.json()["valid"] is False
     assert verify_response.json()["error"] == "MAC verification failed"
 
+
+def test_wrap_api_rejects_unknown_key_id():
+    with TestClient(app) as client:
+        response = client.post(
+            "/wrap",
+            json={
+                "content": "API document",
+                "context": {"request_id": "req-001"},
+                "key_id": "missing-key",
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Unknown signing key id: missing-key"

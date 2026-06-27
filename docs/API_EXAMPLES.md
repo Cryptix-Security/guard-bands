@@ -42,7 +42,7 @@ curl -s -X POST "$API_URL/verify" \
   ${AUTH_HEADER:+-H "$AUTH_HEADER"} \
   -H "Content-Type: application/json" \
   -d '{
-    "wrapped_content": "⟪INERT:START:r:...:h:...⟫\nCustomer note...\n⟪INERT:END:mac:...:kid:key001⟫",
+    "wrapped_content": "⟪INERT:START:v:1:r:...:h:...⟫\nCustomer note...\n⟪INERT:END:mac:...:kid:key001⟫",
     "context": {
       "request_id": "req-001",
       "tenant_id": "tenant-a",
@@ -63,7 +63,7 @@ curl -s -X POST "$API_URL/verify" \
   ${AUTH_HEADER:+-H "$AUTH_HEADER"} \
   -H "Content-Type: application/json" \
   -d '{
-    "wrapped_content": "⟪INERT:START:r:...:h:...⟫\nCustomer note...\n⟪INERT:END:mac:...:kid:key001⟫",
+    "wrapped_content": "⟪INERT:START:v:1:r:...:h:...⟫\nCustomer note...\n⟪INERT:END:mac:...:kid:key001⟫",
     "context": {
       "request_id": "req-001",
       "tenant_id": "tenant-b",
@@ -94,7 +94,7 @@ curl -s -X POST "$API_URL/chat" \
   ${AUTH_HEADER:+-H "$AUTH_HEADER"} \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "Summarize this document:\n\n⟪INERT:START:r:...:h:...⟫\nCustomer note...\n⟪INERT:END:mac:...:kid:key001⟫",
+    "message": "Summarize this document:\n\n⟪INERT:START:v:1:r:...:h:...⟫\nCustomer note...\n⟪INERT:END:mac:...:kid:key001⟫",
     "context": {
       "request_id": "req-001",
       "tenant_id": "tenant-a",
@@ -105,4 +105,3 @@ curl -s -X POST "$API_URL/chat" \
 ```
 
 If the model path skips verification, verification fails, or markers are incomplete, the application fails closed instead of returning an unverified final answer.
-

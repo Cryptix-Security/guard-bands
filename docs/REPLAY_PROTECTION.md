@@ -4,6 +4,15 @@ Guard Bands prevents replay across different authenticated contexts. A payload w
 
 Replay within the exact same context is an application policy decision. For production systems, pair Guard Bands with a nonce ledger, expiration window, or both.
 
+The POC includes optional in-memory replay protection:
+
+```bash
+REPLAY_PROTECTION_ENABLED=true
+REPLAY_WINDOW_SECONDS=900
+```
+
+This is useful for local evaluation and tests. Production deployments should use a shared datastore with atomic inserts or uniqueness constraints.
+
 ## Context-Bound Replay Protection
 
 Wrap with a narrow context:
@@ -97,4 +106,3 @@ The same payload should not verify for:
   "policy_path": "crm.update_customer_record"
 }
 ```
-

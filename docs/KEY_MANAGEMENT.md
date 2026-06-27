@@ -14,6 +14,13 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 - Keep `.env` out of version control.
 - Use different keys for development, test, staging, and production.
 - Treat `key_id` as public metadata that identifies which secret signed a Guard Band. It is not the secret.
+- Set `KEY_ID` to choose the active signing key.
+- Optionally set `GUARD_BAND_KEYS` to a JSON object for rotation-style verification:
+
+```bash
+GUARD_BAND_KEYS='{"key001":"active-secret","key000":"retired-secret"}'
+KEY_ID=key001
+```
 
 ## Production Expectations
 
@@ -27,5 +34,4 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 
 ## Current POC Gap
 
-The current implementation accepts `key_id` as marker metadata but uses a single configured `SECRET_KEY`. A production implementation should replace this with a key resolver that chooses verification keys by `kid`, environment, tenant, and rotation state.
-
+The current implementation includes a small static key resolver suitable for local evaluation. A production implementation should replace this with a resolver backed by a secrets manager or KMS that chooses verification keys by `kid`, environment, tenant, and rotation state.

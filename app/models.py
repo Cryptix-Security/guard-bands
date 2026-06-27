@@ -7,7 +7,7 @@ CONTENT_MAX_BYTES = 50_000
 class WrapRequest(BaseModel):
     content: str = Field(..., max_length=CONTENT_MAX_BYTES)
     context: Dict[str, Any] = Field(default_factory=dict)
-    key_id: str = "key001"
+    key_id: Optional[str] = None
 
 
 class WrapResponse(BaseModel):
@@ -27,6 +27,7 @@ class VerifyResponse(BaseModel):
     error: Optional[str] = None
     nonce: Optional[str] = None
     key_id: Optional[str] = None
+    version: Optional[str] = None
 
 
 class ChatRequest(BaseModel):
