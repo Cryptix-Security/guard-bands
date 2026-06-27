@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.0-poc - 2026-06-27
 
 - Added SQLite-backed persistent replay ledger configuration for single-node pilots.
 - Added authorization helper examples for role, tenant, user, and policy-path checks.
