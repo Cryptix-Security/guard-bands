@@ -14,6 +14,7 @@ class Settings:
     GUARD_BAND_KEYS: dict[str, bytes]
     ANTHROPIC_API_KEY: str
     DEBUG: bool
+    GUARD_BAND_TTL_SECONDS: int
     ALLOWED_ORIGINS: list[str]
     REPLAY_PROTECTION_ENABLED: bool
     REPLAY_LEDGER_BACKEND: str
@@ -41,6 +42,9 @@ class Settings:
 
         self.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
         self.DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+        # Lifetime stamped into each wrapped band (authenticated iat/exp). Bands
+        # verify as expired past this window, independent of the replay ledger.
+        self.GUARD_BAND_TTL_SECONDS = int(os.getenv("GUARD_BAND_TTL_SECONDS", "900"))
         self.REPLAY_PROTECTION_ENABLED = os.getenv("REPLAY_PROTECTION_ENABLED", "false").lower() == "true"
         self.REPLAY_LEDGER_BACKEND = os.getenv("REPLAY_LEDGER_BACKEND", "memory")
         self.REPLAY_LEDGER_PATH = os.getenv("REPLAY_LEDGER_PATH", "data/replay-ledger.sqlite3")

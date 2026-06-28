@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.0-poc - 2026-06-28
+
+- Bound all marker metadata into the MAC: a domain-separated algorithm tag (`GBv1-HMAC-SHA256`), protocol version, key id, and issuer are now authenticated, preventing downgrade and metadata tampering. **Breaking:** the wire format changed and v0.2.0 bands no longer verify.
+- Added authenticated issued/expiry timestamps (`iat`/`exp`) so bands fail closed when stale, independent of the replay ledger. TTL is configurable via `GUARD_BAND_TTL_SECONDS`.
+- Stamped an authenticated issuer into each band; the `/wrap` endpoint records the SSO principal and rejects context that contradicts the authenticated user, closing the open signing-oracle gap.
+- Removed the redundant SHA-256 marker hash (`h`); the MAC is the sole integrity guarantee, simplifying the parser and removing an info-leaking error path.
+- Added Hypothesis property-based fuzz tests for the hand-rolled parser (no crashes, no false-accepts) plus tests for metadata, issuer, and expiry tampering.
+- Removed the stale `Guard-Bands-Paper.pdf` binary snapshot; `Guard-Bands-Paper.md` is now the single source of truth, and all links point to it.
+
 ## v0.2.0-poc - 2026-06-27
 
 - Added SQLite-backed persistent replay ledger configuration for single-node pilots.

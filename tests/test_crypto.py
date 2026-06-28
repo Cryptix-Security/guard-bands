@@ -1,6 +1,7 @@
 from app.crypto import (
     GuardBandCrypto,
     StaticKeyResolver,
+    _encode_issuer,
     canonical_context,
     extract_guard_band_blocks,
 )
@@ -72,7 +73,7 @@ def test_content_tampering_is_rejected():
     result = crypto.extract_and_verify(tampered, context)
 
     assert result["valid"] is False
-    assert result["error"].startswith("Content hash mismatch")
+    assert result["error"] == "MAC verification failed"
 
 
 def test_forged_guard_bands_are_rejected():
@@ -105,9 +106,9 @@ def test_nonce_tampering_is_rejected():
     crypto = make_crypto()
     context = {"request_id": "req-001", "user": "alice"}
     wrapped = crypto.wrap_content("This is safe content", context)
-    nonce = wrapped.split(":r:")[1].split(":h:")[0]
+    nonce = wrapped.split(":r:")[1].split(":iat:")[0]
 
-    tampered = wrapped.replace(f":r:{nonce}:h:", ":r:attackerNonceValue:h:")
+    tampered = wrapped.replace(f":r:{nonce}:iat:", ":r:attackerNonceValue:iat:")
     result = crypto.extract_and_verify(tampered, context)
 
     assert result["valid"] is False
@@ -221,6 +222,86 @@ def test_sqlite_replay_ledger_expires_entries(tmp_path):
     assert ledger.consume(context, "key001", "nonce-value", now=1000) is True
     assert ledger.consume(context, "key001", "nonce-value", now=1005) is False
     assert ledger.consume(context, "key001", "nonce-value", now=1011) is True
+
+
+def test_tampered_key_id_is_rejected():
+    crypto = GuardBandCrypto(
+        key_resolver=StaticKeyResolver({
+            "active": b"shared-secret",
+            "shadow": b"shared-secret",
+        }, "active")
+    )
+    context = {"request_id": "req-001"}
+    wrapped = crypto.wrap_content("Document body", context)
+
+    # Even when two key ids share a secret, kid is bound into the MAC, so
+    # swapping the advertised key id must invalidate the band.
+    tampered = wrapped.replace(":kid:active:", ":kid:shadow:")
+    result = crypto.extract_and_verify(tampered, context)
+
+    assert result["valid"] is False
+    assert result["error"] == "MAC verification failed"
+
+
+def test_tampered_issuer_is_rejected():
+    crypto = make_crypto()
+    context = {"request_id": "req-001"}
+    wrapped = crypto.wrap_content("Document body", context, issuer="alice")
+    encoded_attacker = _encode_issuer("attacker")
+
+    tampered = wrapped.replace(
+        f":iss:{_encode_issuer('alice')}⟫", f":iss:{encoded_attacker}⟫"
+    )
+    result = crypto.extract_and_verify(tampered, context)
+
+    assert result["valid"] is False
+    assert result["error"] == "MAC verification failed"
+
+
+def test_issuer_round_trips_through_verification():
+    crypto = make_crypto()
+    context = {"request_id": "req-001"}
+    wrapped = crypto.wrap_content("Document body", context, issuer="alice@example.com")
+
+    result = crypto.extract_and_verify(wrapped, context)
+
+    assert result["valid"] is True
+    assert result["issuer"] == "alice@example.com"
+
+
+def test_default_issuer_is_anonymous():
+    crypto = make_crypto()
+    wrapped = crypto.wrap_content("Document body", {"request_id": "req-001"})
+
+    result = crypto.extract_and_verify(wrapped, {"request_id": "req-001"})
+
+    assert result["issuer"] == "anonymous"
+
+
+def test_expired_guard_band_is_rejected():
+    crypto = make_crypto()
+    context = {"request_id": "req-001"}
+    wrapped = crypto.wrap_content("Document body", context, ttl_seconds=60, now=1000)
+
+    fresh = crypto.extract_and_verify(wrapped, context, now=1059)
+    expired = crypto.extract_and_verify(wrapped, context, now=1061)
+
+    assert fresh["valid"] is True
+    assert expired["valid"] is False
+    assert expired["error"] == "Guard band expired"
+
+
+def test_extended_expiry_cannot_be_forged():
+    crypto = make_crypto()
+    context = {"request_id": "req-001"}
+    wrapped = crypto.wrap_content("Document body", context, ttl_seconds=60, now=1000)
+
+    # Attacker rewrites the advertised expiry far into the future.
+    tampered = wrapped.replace(":exp:1060⟫", ":exp:9999999999⟫")
+    result = crypto.extract_and_verify(tampered, context, now=5000)
+
+    assert result["valid"] is False
+    assert result["error"] == "MAC verification failed"
 
 
 def test_extract_guard_band_blocks_from_prompt():

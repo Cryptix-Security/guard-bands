@@ -39,10 +39,14 @@ Prompt wording alone is not a security boundary.
 Guard Bands wraps untrusted content with cryptographically signed markers:
 
 ```text
-⟪INERT:START:v:1:r:b64url(nonce):h:b64(hash)⟫
+⟪INERT:START:v:1:r:b64url(nonce):iat:issued_at:exp:expires_at⟫
 [Untrusted user content goes here]
-⟪INERT:END:mac:b64(mac):kid:keyid⟫
+⟪INERT:END:mac:b64(mac):kid:keyid:iss:b64url(issuer)⟫
 ```
+
+The MAC authenticates every marker field — algorithm tag, protocol version,
+key id, issuer, and the issued/expiry timestamps — so none of them can be
+tampered with or downgraded without invalidating the signature.
 
 Before the application allows wrapped content to influence sensitive behavior, the content must be verified.
 
@@ -81,7 +85,7 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 
 | Layer | Implemented |
 |---|---|
-| Core crypto | HMAC-SHA256 wrapping, SHA-256 content hashing, context binding, tamper detection |
+| Core crypto | HMAC-SHA256 wrapping with a domain-separated algorithm tag, full marker-metadata authentication (version, key id, issuer, lifetime), context binding, authenticated issued/expiry freshness, and tamper detection |
 | API | FastAPI `/wrap`, `/verify`, and `/chat` endpoints |
 | FastAPI integration | Route middleware that verifies Guard Band request bodies before handlers run |
 | Reference app | Support-ticket workflow with verification plus authorization checks |
@@ -293,7 +297,7 @@ Known production gaps include:
 - development secrets and defaults
 - Keycloak development-mode configuration
 - no TLS termination in the local Compose stack
-- no persistent nonce ledger
+- single-node replay ledger only (in-memory or SQLite; no shared/distributed store)
 - no production key resolver or key-rotation workflow
 - no production deployment hardening profile
 
@@ -331,8 +335,7 @@ Key files include:
 | `SECURITY.md` | Vulnerability reporting policy |
 | `CONTRIBUTING.md` | Contribution guidance |
 | `QUICKSTART.md` | Setup, demo, and operational notes |
-| `Guard-Bands-Paper.md` | Editable Markdown source for the research paper |
-| `Guard-Bands-Paper.pdf` | Longer technical paper |
+| `Guard-Bands-Paper.md` | Technical research paper |
 
 ---
 
@@ -382,9 +385,7 @@ The included paper expands on:
 - business and operational use cases
 - comparison with existing approaches
 
-Read the updated Markdown paper: [`Guard-Bands-Paper.md`](./Guard-Bands-Paper.md)
-
-The original PDF snapshot is also included: [`Guard-Bands-Paper.pdf`](./Guard-Bands-Paper.pdf)
+Read the paper: [`Guard-Bands-Paper.md`](./Guard-Bands-Paper.md)
 
 ---
 

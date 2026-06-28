@@ -17,26 +17,26 @@ The model is not the root of trust. It can request verification, but the applica
 
 1. Application receives untrusted content.
 2. Application builds the expected context, such as request id, tenant id, user id, model, and policy path.
-3. `GuardBandCrypto.wrap_content` generates a nonce, hashes the content, and signs the canonical payload.
+3. `GuardBandCrypto.wrap_content` generates a nonce, stamps issued/expiry timestamps and the minting issuer, and signs the canonical payload.
 4. The wrapped block is passed downstream as inert data.
 
-The marker format is versioned:
+The marker format is versioned, and every field is authenticated by the MAC:
 
 ```text
-⟪INERT:START:v:1:r:b64url(nonce):h:b64(hash)⟫
+⟪INERT:START:v:1:r:b64url(nonce):iat:issued_at:exp:expires_at⟫
 [untrusted content]
-⟪INERT:END:mac:b64(mac):kid:keyid⟫
+⟪INERT:END:mac:b64(mac):kid:keyid:iss:b64url(issuer)⟫
 ```
 
 ## Verification Flow
 
 1. Application detects a complete Guard Band block.
-2. Application verifies marker structure, protocol version, nonce, key id, hash, MAC, and context.
+2. Application verifies marker structure, protocol version, nonce, key id, issuer, MAC, lifetime (expiry), and context.
 3. Optional replay protection checks the nonce against the canonical context.
 4. Application treats verified content as data, not authority.
 5. Sensitive tool calls still require normal authorization and policy checks.
 
-Verification fails closed. If a block is malformed, tampered with, signed by an unknown key, bound to the wrong context, or replayed inside the same context, the application rejects it.
+Verification fails closed. If a block is malformed, tampered with, signed by an unknown key, bound to the wrong context, expired, or replayed inside the same context, the application rejects it.
 
 ## FastAPI Integration
 

@@ -206,7 +206,7 @@ curl -X POST "http://localhost:8000/wrap" \
 **Response:**
 ```json
 {
-  "wrapped_content": "⟪INERT:START:v:1:r:nonce:h:hash⟫\nUser document content here\n⟪INERT:END:mac:signature:kid:key001⟫",
+  "wrapped_content": "⟪INERT:START:v:1:r:nonce:iat:issued:exp:expiry⟫\nUser document content here\n⟪INERT:END:mac:signature:kid:key001:iss:issuer⟫",
   "nonce": "abc123...",
   "content_hash": "xyz789..."
 }
@@ -437,7 +437,7 @@ Claude's response: [May or may not be fooled by injection]
 ## Next Steps
 
 1. **Read the main [README](README.md)** for conceptual background
-2. **Review [Guard-Bands-Paper.pdf](Guard-Bands-Paper.pdf)** for technical details
+2. **Review [Guard-Bands-Paper.md](Guard-Bands-Paper.md)** for technical details
 3. **Explore `app/crypto.py`** to understand the cryptography
 4. **Modify `demo_llm_attack.py`** to test your own attack scenarios
 5. **Try different LLM models** by changing the model parameter
@@ -511,7 +511,7 @@ Found a vulnerability or have ideas for improvement?
 ## Resources
 
 - **GitHub**: [github.com/Cryptix-Security/guard-bands](https://github.com/Cryptix-Security/guard-bands)
-- **Paper**: [Guard-Bands-Paper.pdf](Guard-Bands-Paper.pdf)
+- **Paper**: [Guard-Bands-Paper.md](Guard-Bands-Paper.md)
 - **Anthropic**: [docs.anthropic.com](https://docs.anthropic.com)
 - **FastAPI**: [fastapi.tiangolo.com](https://fastapi.tiangolo.com)
 

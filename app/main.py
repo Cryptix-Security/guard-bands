@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
     await audit.shutdown()
 
 
-app = FastAPI(title="Guard Bands POC", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Guard Bands POC", version="0.3.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -95,14 +95,27 @@ async def root():
 async def wrap_content(request: Request, body: WrapRequest):
     start = time.monotonic()
     ip = _client_ip(request)
+    user_id = request.state.user_id
     try:
-        wrapped = crypto.wrap_content(
+        # The /wrap endpoint signs whatever context the caller supplies, so an
+        # authenticated caller must not be able to mint a band bound to another
+        # user's identity. Reject context that contradicts the SSO principal.
+        context_user = body.context.get("user")
+        if user_id and context_user and context_user != user_id:
+            raise ValueError("Context user does not match authenticated principal")
+
+        wrapped_meta = crypto.wrap_with_metadata(
             content=body.content,
             context=body.context,
             key_id=body.key_id,
+            # Record who minted the band so the signature carries provenance,
+            # not just integrity. Falls back to anonymous for unauthenticated dev.
+            issuer=user_id or None,
+            ttl_seconds=settings.GUARD_BAND_TTL_SECONDS,
         )
-        nonce = wrapped.split(":r:")[1].split(":h:")[0]
-        content_hash = wrapped.split(":h:")[1].split("⟫")[0]
+        wrapped = wrapped_meta["wrapped"]
+        nonce = wrapped_meta["nonce"]
+        content_hash = crypto.hash_content(body.content)
 
         await audit.log(AuditEvent(
             event_type="wrap",

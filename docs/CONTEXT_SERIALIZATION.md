@@ -1,14 +1,26 @@
 # Canonical Context Serialization
 
-Guard Bands signs a canonical JSON payload:
+Guard Bands signs a canonical JSON payload. Every field that travels in the
+markers is authenticated, so none of them can be tampered with or downgraded
+without invalidating the MAC:
 
 ```json
 {
+  "alg": "GBv1-HMAC-SHA256",
   "content": "<exact wrapped content body>",
   "context": { "...": "..." },
-  "nonce": "<guard-band nonce>"
+  "exp": 1735689600,
+  "iat": 1735688700,
+  "iss": "<issuer / minting principal>",
+  "kid": "<signing key id>",
+  "nonce": "<guard-band nonce>",
+  "v": "1"
 }
 ```
+
+The `alg` tag provides domain separation and blocks algorithm downgrade; `iat`
+and `exp` bind the band's lifetime so freshness is enforced from authenticated
+data (fail closed) rather than from an external ledger alone.
 
 The canonical serializer uses:
 
@@ -49,10 +61,11 @@ Do not include unstable values that legitimately change between wrap and verify 
 
 Changing canonicalization changes MAC input. If this POC is extended into a deployed system, treat serialization rules as versioned protocol behavior and include the serializer version in signed metadata before supporting multiple formats.
 
-The current marker format includes protocol version `v:1`:
+The current marker format includes protocol version `v:1`, issued/expiry
+timestamps, and the minting issuer:
 
 ```text
-⟪INERT:START:v:1:r:nonce:h:hash⟫
+⟪INERT:START:v:1:r:nonce:iat:1735688700:exp:1735689600⟫
 content
-⟪INERT:END:mac:signature:kid:key001⟫
+⟪INERT:END:mac:signature:kid:key001:iss:b64url(issuer)⟫
 ```
