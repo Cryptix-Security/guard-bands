@@ -14,6 +14,7 @@ from app.llm import llm_service
 from app.middleware.auth import SSOHeaderMiddleware
 from app.models import (
     ChatRequest, ChatResponse,
+    CostEstimateResponse,
     WrapRequest, WrapResponse,
     VerifyRequest, VerifyResponse,
 )
@@ -185,6 +186,32 @@ async def verify_content(request: Request, body: VerifyRequest):
     return VerifyResponse(**result)
 
 
+@app.post("/chat/estimate-cost", response_model=CostEstimateResponse)
+@limiter.limit("60/minute")
+async def estimate_chat_cost(request: Request, body: ChatRequest):
+    start = time.monotonic()
+    ip = _client_ip(request)
+    estimate = llm_service.estimate_chat_cost(
+        user_message=body.message,
+        max_output_tokens=body.max_output_tokens,
+    )
+
+    await audit.log(AuditEvent(
+        event_type="chat_cost_estimate",
+        success=True,
+        ip=ip,
+        user_id=request.state.user_id,
+        duration_ms=(time.monotonic() - start) * 1000,
+        details={
+            "model": estimate["model"],
+            "estimated_total_cost_usd": estimate["estimated_total_cost_usd"],
+            "threshold_exceeded": estimate["threshold_exceeded"],
+            "user_email": request.state.user_email,
+        },
+    ))
+    return CostEstimateResponse(**estimate)
+
+
 @app.post("/chat", response_model=ChatResponse)
 @limiter.limit("20/minute")
 async def chat(request: Request, body: ChatRequest):
@@ -195,6 +222,8 @@ async def chat(request: Request, body: ChatRequest):
     result = await llm_service.chat(
         user_message=body.message,
         context=body.context,
+        max_output_tokens=body.max_output_tokens,
+        approve_estimated_cost=body.approve_estimated_cost,
     )
 
     success = result["success"]
@@ -208,6 +237,10 @@ async def chat(request: Request, body: ChatRequest):
             "model": result.get("model"),
             "input_tokens": result.get("usage", {}).get("input_tokens"),
             "output_tokens": result.get("usage", {}).get("output_tokens"),
+            "actual_cost_usd": result.get("cost", {}).get("actual", {}).get("total_cost_usd"),
+            "estimated_cost_usd": result.get("cost", {}).get("preflight_estimate", {}).get("estimated_total_cost_usd")
+            or result.get("cost_estimate", {}).get("estimated_total_cost_usd"),
+            "cost_threshold_exceeded": result.get("cost_estimate", {}).get("threshold_exceeded"),
             "guard_bands_in_message": guard_bands_present,
             "user_email": request.state.user_email,
             "error": result.get("error") if not success else None,
@@ -215,12 +248,25 @@ async def chat(request: Request, body: ChatRequest):
     ))
 
     if not success:
-        raise HTTPException(status_code=500, detail=result["error"])
+        detail = result["error"]
+        if result.get("cost"):
+            detail = {
+                "error": result["error"],
+                "cost": result["cost"],
+            }
+        if result.get("cost_estimate"):
+            detail = {
+                "error": result["error"],
+                "cost_estimate": result["cost_estimate"],
+                "hint": "Resubmit with approve_estimated_cost=true to proceed.",
+            }
+        raise HTTPException(status_code=result.get("status_code", 500), detail=detail)
 
     return ChatResponse(
         response=result["response"],
         model=result["model"],
         usage=result["usage"],
+        cost=result.get("cost"),
     )
 
 

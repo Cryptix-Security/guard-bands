@@ -89,6 +89,26 @@ Expected response shape:
 
 The `/chat` endpoint requires guard-banded content to be verified through the configured tool path before a final model response is accepted.
 
+### Estimate Chat Cost Without Calling the Model
+
+```bash
+curl -s -X POST "$API_URL/chat/estimate-cost" \
+  ${AUTH_HEADER:+-H "$AUTH_HEADER"} \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Summarize this document:\n\n⟪INERT:START:v:1:r:...:iat:...:exp:...⟫\nCustomer note...\n⟪INERT:END:mac:...:kid:key001:iss:...⟫",
+    "context": {
+      "request_id": "req-001",
+      "tenant_id": "tenant-a",
+      "user": "alice",
+      "policy_path": "support.summarize"
+    },
+    "max_output_tokens": 1000
+  }'
+```
+
+If the estimate exceeds `COST_GUARD_THRESHOLD_USD`, `/chat` returns HTTP 402 without calling the model. Show the estimate to the user, then resubmit with `"approve_estimated_cost": true` if they approve.
+
 ```bash
 curl -s -X POST "$API_URL/chat" \
   ${AUTH_HEADER:+-H "$AUTH_HEADER"} \
@@ -100,8 +120,29 @@ curl -s -X POST "$API_URL/chat" \
       "tenant_id": "tenant-a",
       "user": "alice",
       "policy_path": "support.summarize"
-    }
+    },
+    "max_output_tokens": 1000,
+    "approve_estimated_cost": false
   }'
 ```
 
 If the model path skips verification, verification fails, or markers are incomplete, the application fails closed instead of returning an unverified final answer.
+
+Successful responses include both provider token usage and cost details:
+
+```json
+{
+  "usage": {
+    "input_tokens": 1800,
+    "output_tokens": 220
+  },
+  "cost": {
+    "preflight_estimate": {
+      "estimated_total_cost_usd": 0.0065
+    },
+    "actual": {
+      "total_cost_usd": 0.0029
+    }
+  }
+}
+```

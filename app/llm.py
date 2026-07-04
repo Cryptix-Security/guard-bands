@@ -3,6 +3,7 @@ import logging
 from anthropic import AsyncAnthropic
 
 from app.config import settings
+from app.cost import actual_chat_cost, estimate_chat_request_cost
 from app.crypto import GuardBandCrypto, StaticKeyResolver, extract_guard_band_blocks
 from app.replay import apply_replay_protection
 
@@ -73,27 +74,80 @@ def _verify_tool(wrapped_content: str, context: dict) -> dict:
 class LLMService:
     def __init__(self) -> None:
         self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        self.model = settings.LLM_MODEL
+        self.max_output_tokens = settings.LLM_MAX_OUTPUT_TOKENS
+        self.cost_guard_enabled = settings.COST_GUARD_ENABLED
+        self.cost_guard_threshold_usd = settings.COST_GUARD_THRESHOLD_USD
+        self.input_usd_per_mtok = settings.COST_GUARD_INPUT_USD_PER_MTOK
+        self.output_usd_per_mtok = settings.COST_GUARD_OUTPUT_USD_PER_MTOK
 
-    async def chat(self, user_message: str, context: dict | None = None) -> dict:
+    def estimate_chat_cost(self, user_message: str, max_output_tokens: int | None = None) -> dict:
+        messages = [{"role": "user", "content": user_message}]
+        return estimate_chat_request_cost(
+            model=self.model,
+            system=GUARD_BAND_SYSTEM_PROMPT,
+            messages=messages,
+            tools=[VERIFICATION_TOOL],
+            output_token_budget=max_output_tokens or self.max_output_tokens,
+            input_usd_per_mtok=self.input_usd_per_mtok,
+            output_usd_per_mtok=self.output_usd_per_mtok,
+            threshold_usd=self.cost_guard_threshold_usd,
+            guard_enabled=self.cost_guard_enabled,
+        )
+
+    async def chat(
+        self,
+        user_message: str,
+        context: dict | None = None,
+        max_output_tokens: int | None = None,
+        approve_estimated_cost: bool = False,
+    ) -> dict:
         if context is None:
             context = {}
 
         messages = [{"role": "user", "content": user_message}]
+        output_token_budget = max_output_tokens or self.max_output_tokens
+        cost_estimate = self.estimate_chat_cost(user_message, output_token_budget)
+        if cost_estimate["requires_confirmation"] and not approve_estimated_cost:
+            return {
+                "success": False,
+                "status_code": 402,
+                "error": "Estimated model cost exceeds organization threshold",
+                "cost_estimate": cost_estimate,
+            }
+
         guard_band_blocks = extract_guard_band_blocks(user_message)
         guard_bands_present = (
             "⟪INERT:START" in user_message or "⟪INERT:END" in user_message
         )
         verified_blocks: set[str] = set()
+        usage_totals = {"input_tokens": 0, "output_tokens": 0}
+        response_model = self.model
+
+        def cost_payload() -> dict:
+            return {
+                "preflight_estimate": cost_estimate,
+                "actual": actual_chat_cost(
+                    model=response_model,
+                    input_tokens=usage_totals["input_tokens"],
+                    output_tokens=usage_totals["output_tokens"],
+                    input_usd_per_mtok=self.input_usd_per_mtok,
+                    output_usd_per_mtok=self.output_usd_per_mtok,
+                ),
+            }
 
         try:
             for _ in range(5):
                 response = await self.client.messages.create(
-                    model=settings.LLM_MODEL,
-                    max_tokens=2048,
+                    model=self.model,
+                    max_tokens=output_token_budget,
                     system=GUARD_BAND_SYSTEM_PROMPT,
                     messages=messages,
                     tools=[VERIFICATION_TOOL],
                 )
+                response_model = response.model
+                usage_totals["input_tokens"] += response.usage.input_tokens
+                usage_totals["output_tokens"] += response.usage.output_tokens
 
                 if response.stop_reason != "tool_use":
                     if guard_bands_present:
@@ -101,11 +155,13 @@ class LLMService:
                             return {
                                 "success": False,
                                 "error": "Guard band markers are incomplete or malformed",
+                                "cost": cost_payload(),
                             }
                         if not all(block in verified_blocks for block in guard_band_blocks):
                             return {
                                 "success": False,
                                 "error": "Guard-banded content was not verified before response",
+                                "cost": cost_payload(),
                             }
 
                     final_text = "".join(
@@ -115,20 +171,26 @@ class LLMService:
                         "success": True,
                         "response": final_text,
                         "model": response.model,
-                        "usage": {
-                            "input_tokens": response.usage.input_tokens,
-                            "output_tokens": response.usage.output_tokens,
-                        },
+                        "usage": usage_totals,
+                        "cost": cost_payload(),
                     }
 
                 tool_use = next((b for b in response.content if b.type == "tool_use"), None)
                 messages.append({"role": "assistant", "content": list(response.content)})
 
                 if not tool_use:
-                    return {"success": False, "error": "Tool-use response did not include a tool call"}
+                    return {
+                        "success": False,
+                        "error": "Tool-use response did not include a tool call",
+                        "cost": cost_payload(),
+                    }
 
                 if tool_use.name != "verify_guard_bands":
-                    return {"success": False, "error": f"Unsupported tool call: {tool_use.name}"}
+                    return {
+                        "success": False,
+                        "error": f"Unsupported tool call: {tool_use.name}",
+                        "cost": cost_payload(),
+                    }
 
                 wrapped_content = tool_use.input["wrapped_content"]
                 result = _verify_tool(
@@ -141,6 +203,7 @@ class LLMService:
                     return {
                         "success": False,
                         "error": f"Guard band verification failed: {result.get('error')}",
+                        "cost": cost_payload(),
                     }
 
                 verified_blocks.add(wrapped_content)
@@ -153,7 +216,11 @@ class LLMService:
                     }],
                 })
 
-            return {"success": False, "error": "Max tool call iterations reached"}
+            return {
+                "success": False,
+                "error": "Max tool call iterations reached",
+                "cost": cost_payload(),
+            }
 
         except Exception as e:
             logger.error("Chat error: %s", e)

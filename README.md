@@ -90,6 +90,7 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 | FastAPI integration | Route middleware that verifies Guard Band request bodies before handlers run |
 | Reference app | Support-ticket workflow with verification plus authorization checks |
 | Limits | Per-user rate limiting and 50 KB content limits |
+| Cost guard | Preflight chat cost estimates, configurable threshold confirmation, and final actual cost reporting |
 | Audit logging | Structured JSON audit events to stdout, PostgreSQL, and Splunk HEC |
 | Authentication | SSO via oauth2-proxy and Keycloak using OIDC |
 | Identity propagation | Keycloak user identity flows into audit events |
@@ -107,6 +108,7 @@ Guard Bands is not an enterprise platform, but the repository includes a working
 - identity propagation into structured audit events
 - audit fan-out to stdout, PostgreSQL, and Splunk HEC
 - per-user or per-IP API rate limiting
+- optional preflight LLM cost guard with organization threshold
 - Docker Compose stack for local evaluation
 - FastAPI middleware for protected tool-input routes
 - persistent SQLite replay ledger for single-node pilots
@@ -318,6 +320,7 @@ Key files include:
 | `docs/AUTHORIZATION.md` | Authorization pattern for sensitive tool calls |
 | `docs/ARCHITECTURE.md` | Architecture, trust boundaries, and threat model |
 | `docs/API_EXAMPLES.md` | Curl examples for wrap, verify, replay checks, and chat |
+| `docs/COST_GUARD.md` | Preflight estimate, threshold confirmation, and final cost reporting |
 | `docs/DEMO.md` | Visual flow and terminal-style demo |
 | `docs/INTEGRATIONS.md` | FastAPI and RAG integration examples |
 | `docs/LIMITS.md` | Parser, API, replay, and benchmark guidance |
@@ -363,6 +366,7 @@ More detail:
 - [`docs/API_EXAMPLES.md`](docs/API_EXAMPLES.md)
 - [`docs/AUTHORIZATION.md`](docs/AUTHORIZATION.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/COST_GUARD.md`](docs/COST_GUARD.md)
 - [`docs/DEMO.md`](docs/DEMO.md)
 - [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)
 - [`docs/LIMITS.md`](docs/LIMITS.md)

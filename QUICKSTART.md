@@ -54,6 +54,13 @@ DEBUG=false
 # CORS — comma-separated allowed origins
 ALLOWED_ORIGINS=http://localhost:3000
 
+# Optional preflight LLM cost guard
+LLM_MAX_OUTPUT_TOKENS=2048
+COST_GUARD_ENABLED=true
+COST_GUARD_THRESHOLD_USD=1.00
+COST_GUARD_INPUT_USD_PER_MTOK=1.00
+COST_GUARD_OUTPUT_USD_PER_MTOK=5.00
+
 # Optional replay ledger for single-use verification semantics
 REPLAY_PROTECTION_ENABLED=false
 REPLAY_LEDGER_BACKEND=memory
@@ -479,6 +486,7 @@ This is a POC. For production use, consider:
 - **Canonical context design** - Keep context fields stable and security-relevant
 - **Replay ledgers** - Use `sqlite` for a single-node pilot or a shared Redis/Postgres ledger for multiple replicas
 - **Authorization** - Check tenant, user, role, and policy path before sensitive tools run
+- **Cost guardrails** - Set model-specific prices and per-org thresholds before enabling model calls
 - **Rate limiting** - Per-user limits already in place; tune thresholds for your traffic
 - **HTTPS** - Guard bands don't encrypt; terminate TLS at the load balancer, not oauth2-proxy
 - **Time expiration** - Add timestamp validation to nonces to prevent stale replay attacks
@@ -492,6 +500,7 @@ See also:
 - [`docs/API_EXAMPLES.md`](docs/API_EXAMPLES.md)
 - [`docs/AUTHORIZATION.md`](docs/AUTHORIZATION.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/COST_GUARD.md`](docs/COST_GUARD.md)
 - [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)
 - [`docs/LIMITS.md`](docs/LIMITS.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)

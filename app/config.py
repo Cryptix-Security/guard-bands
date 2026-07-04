@@ -30,6 +30,12 @@ class Settings:
     LOG_SPLUNK_INDEX: str
     LOG_SPLUNK_SOURCE: str
     LOG_SPLUNK_SSL_VERIFY: bool
+    LLM_MODEL: str
+    LLM_MAX_OUTPUT_TOKENS: int
+    COST_GUARD_ENABLED: bool
+    COST_GUARD_THRESHOLD_USD: float
+    COST_GUARD_INPUT_USD_PER_MTOK: float
+    COST_GUARD_OUTPUT_USD_PER_MTOK: float
 
     def __init__(self) -> None:
         raw_key = os.getenv("SECRET_KEY", "")
@@ -63,6 +69,11 @@ class Settings:
         self.LOG_SPLUNK_SSL_VERIFY = os.getenv("LOG_SPLUNK_SSL_VERIFY", "true").lower() == "true"
 
         self.LLM_MODEL = os.getenv("LLM_MODEL", "claude-3-5-haiku-20241022")
+        self.LLM_MAX_OUTPUT_TOKENS = int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "2048"))
+        self.COST_GUARD_ENABLED = os.getenv("COST_GUARD_ENABLED", "true").lower() == "true"
+        self.COST_GUARD_THRESHOLD_USD = float(os.getenv("COST_GUARD_THRESHOLD_USD", "1.00"))
+        self.COST_GUARD_INPUT_USD_PER_MTOK = float(os.getenv("COST_GUARD_INPUT_USD_PER_MTOK", "1.00"))
+        self.COST_GUARD_OUTPUT_USD_PER_MTOK = float(os.getenv("COST_GUARD_OUTPUT_USD_PER_MTOK", "5.00"))
 
         # SSO — set by oauth2-proxy headers; disabled by default for local dev
         # oauth2-proxy --pass-user-headers=true sets X-Forwarded-User / X-Forwarded-Email

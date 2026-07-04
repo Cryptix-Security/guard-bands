@@ -100,6 +100,8 @@ def test_chat_allows_response_after_successful_verification_tool_call():
 
     assert result["success"] is True
     assert result["response"] == "The verified document contains trusted data."
+    assert result["cost"]["actual"]["total_cost_usd"] >= 0
+    assert result["cost"]["preflight_estimate"]["estimated_total_cost_usd"] >= 0
     assert len(service.client.messages.calls) == 2
     assert service.client.messages.calls[0]["tools"][0]["name"] == "verify_guard_bands"
 
@@ -161,3 +163,35 @@ def test_chat_rejects_incomplete_guard_band_markers():
 
     assert result["success"] is False
     assert result["error"] == "Guard band markers are incomplete or malformed"
+
+
+def test_chat_requires_cost_confirmation_above_threshold():
+    service = make_service([text_response("This should not be called.")])
+    service.cost_guard_threshold_usd = 0.000001
+
+    result = asyncio.run(service.chat("Summarize this expensive prompt.", {}))
+
+    assert result["success"] is False
+    assert result["status_code"] == 402
+    assert result["error"] == "Estimated model cost exceeds organization threshold"
+    assert result["cost_estimate"]["threshold_exceeded"] is True
+    assert len(service.client.messages.calls) == 0
+
+
+def test_chat_allows_above_threshold_when_cost_is_approved():
+    service = make_service([text_response("Approved response.")])
+    service.cost_guard_threshold_usd = 0.000001
+
+    result = asyncio.run(
+        service.chat(
+            "Summarize this expensive prompt.",
+            {},
+            approve_estimated_cost=True,
+        )
+    )
+
+    assert result["success"] is True
+    assert result["response"] == "Approved response."
+    assert result["cost"]["preflight_estimate"]["threshold_exceeded"] is True
+    assert result["cost"]["actual"]["input_tokens"] == 1
+    assert len(service.client.messages.calls) == 1

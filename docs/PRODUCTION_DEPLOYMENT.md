@@ -26,6 +26,11 @@ DEBUG=false
 ALLOWED_ORIGINS=https://your-app.example.com
 SSO_ENABLED=true
 
+COST_GUARD_ENABLED=true
+COST_GUARD_THRESHOLD_USD=1.00
+COST_GUARD_INPUT_USD_PER_MTOK=1.00
+COST_GUARD_OUTPUT_USD_PER_MTOK=5.00
+
 REPLAY_PROTECTION_ENABLED=true
 REPLAY_LEDGER_BACKEND=sqlite
 REPLAY_LEDGER_PATH=data/replay-ledger.sqlite3
@@ -38,6 +43,8 @@ LOG_SPLUNK_SSL_VERIFY=true
 ```
 
 For more than one API replica, replace the SQLite replay ledger with a shared datastore such as Postgres or Redis before relying on same-context single-use protection.
+
+Set cost guard prices to match the model configured in `LLM_MODEL`. The defaults are deliberately easy to demonstrate, not a substitute for an organization-specific budget policy.
 
 ## Key Management
 
@@ -94,6 +101,7 @@ Avoid logging raw document content. The built-in audit events log metadata such 
 - [ ] TLS enforced before traffic reaches the API.
 - [ ] SSO/API gateway configured.
 - [ ] Replay protection enabled with durable or shared storage.
+- [ ] Cost guard threshold and model pricing configured.
 - [ ] Audit sink configured and retention policy set.
 - [ ] Authorization checks added before sensitive tools.
 - [ ] CI and CodeQL required before merge.

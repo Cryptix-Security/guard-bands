@@ -60,3 +60,24 @@ def test_wrap_api_rejects_unknown_key_id():
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Unknown signing key id: missing-key"
+
+
+def test_chat_estimate_cost_api_returns_preflight_estimate():
+    with TestClient(app) as client:
+        response = client.post(
+            "/chat/estimate-cost",
+            json={
+                "message": "Summarize this document",
+                "context": {"request_id": "req-001"},
+                "max_output_tokens": 100,
+            },
+        )
+
+    assert response.status_code == 200
+    estimate = response.json()
+    assert estimate["model"]
+    assert estimate["method"] == "approx_chars_per_token"
+    assert estimate["input_tokens_estimate"] > 0
+    assert estimate["output_tokens_budget"] == 100
+    assert estimate["estimated_total_cost_usd"] >= 0
+    assert estimate["threshold_usd"] == 1.0

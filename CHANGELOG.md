@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added configurable chat cost guardrails with a `/chat/estimate-cost` preflight endpoint.
+- Added threshold-based confirmation for `/chat` requests before calling the model.
+- Added actual cost reporting from provider token usage in successful `/chat` responses.
+
 ## v0.3.1-poc - 2026-07-04
 
 - Bumped pinned runtime dependencies for the Python security and maintenance group:
