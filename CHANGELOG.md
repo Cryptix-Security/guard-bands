@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.1-poc - 2026-07-04
+
+- Bumped pinned runtime dependencies for the Python security and maintenance group:
+  - `anthropic` from `0.111.0` to `0.112.0`
+  - `fastapi` from `0.138.0` to `0.138.1`
+- Updated stale test and benchmark Guard Band marker literals to the `v0.3.0` wire format.
+- Added a manual `workflow_dispatch` trigger to the CI workflow.
+
 ## v0.3.0-poc - 2026-06-28
 
 - Bound all marker metadata into the MAC: a domain-separated algorithm tag (`GBv1-HMAC-SHA256`), protocol version, key id, and issuer are now authenticated, preventing downgrade and metadata tampering. **Breaking:** the wire format changed and v0.2.0 bands no longer verify.
