@@ -1,0 +1,28 @@
+# Caddy TLS front door for the Guard Bands stack.
+#
+# DEFAULT (local production-shape): serve on :443 with a self-signed cert so
+# you can exercise the hardened stack without a public domain.
+#
+# REAL DOMAIN: replace the whole `:443 { ... }` block with:
+#
+#   api.your-domain.example {
+#       reverse_proxy oauth2-proxy:4180
+#   }
+#
+# Caddy will then obtain and renew a Let's Encrypt certificate automatically
+# (ports 80 and 443 must be reachable from the internet).
+
+:443 {
+	tls internal
+	encode gzip
+
+	# Forward the real client IP/proto so the app and oauth2-proxy see them.
+	reverse_proxy oauth2-proxy:4180 {
+		header_up X-Forwarded-Proto https
+	}
+}
+
+# Redirect plain HTTP to HTTPS.
+:80 {
+	redir https://{host}{uri} permanent
+}

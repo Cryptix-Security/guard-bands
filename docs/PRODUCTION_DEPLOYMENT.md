@@ -14,11 +14,35 @@ internet or internal users
 
 Do not expose the FastAPI service directly. Put TLS, authentication, request limits, and logging at the edge.
 
+## Running the Hardened Stack
+
+A production-shape Compose overlay is provided. It adds a Caddy TLS front door,
+removes direct port exposure, runs Keycloak in production mode, and applies
+restart policies and CPU/memory limits:
+
+```bash
+cp .env.production.example .env.production   # fill in real secrets
+docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
+  --env-file .env.production up -d --build
+```
+
+By default Caddy serves a self-signed cert so the hardened stack runs locally;
+point `deploy/Caddyfile` at a real domain for automatic Let's Encrypt certs.
+The image runs as a non-root user with a `/health` healthcheck.
+
+## Secrets
+
+Secret-bearing settings resolve through a pluggable provider. Set
+`SECRETS_BACKEND=env|aws|vault` — see [`docs/SECRETS.md`](SECRETS.md). `env` is
+the default and works with orchestrator-injected secrets (Vault Agent, ECS task
+secrets, Kubernetes External Secrets); `aws` and `vault` fetch by name.
+
 ## Minimum Production Settings
 
 Set these explicitly:
 
 ```bash
+SECRETS_BACKEND=env   # or aws | vault
 SECRET_KEY=<generated high-entropy secret>
 KEY_ID=key-2026-06
 GUARD_BAND_KEYS={"key-2026-06":"active-secret","key-2026-05":"previous-secret"}
@@ -97,9 +121,10 @@ Avoid logging raw document content. The built-in audit events log metadata such 
 
 ## Deployment Checklist
 
-- [ ] Production `SECRET_KEY` and `GUARD_BAND_KEYS` set through a secret manager.
-- [ ] TLS enforced before traffic reaches the API.
-- [ ] SSO/API gateway configured.
+- [ ] `SECRETS_BACKEND` set (`env`/`aws`/`vault`); `SECRET_KEY` and `GUARD_BAND_KEYS` resolved from a secret manager, not committed.
+- [ ] TLS enforced before traffic reaches the API (Caddy overlay or platform ingress).
+- [ ] Container runs as non-root with a healthcheck (shipped in the Dockerfile).
+- [ ] SSO/API gateway configured (bundled Keycloak in production mode, or an external IdP).
 - [ ] Replay protection enabled with durable or shared storage.
 - [ ] Cost guard threshold and model pricing configured.
 - [ ] Audit sink configured and retention policy set.

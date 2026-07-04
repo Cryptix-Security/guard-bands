@@ -4,6 +4,8 @@ import json
 
 from dotenv import load_dotenv
 
+from app.secrets_provider import build_secret_provider
+
 load_dotenv()
 
 
@@ -38,15 +40,20 @@ class Settings:
     COST_GUARD_OUTPUT_USD_PER_MTOK: float
 
     def __init__(self) -> None:
-        raw_key = os.getenv("SECRET_KEY", "")
+        # Secret-bearing settings resolve through the configured provider
+        # (env by default; aws or vault when SECRETS_BACKEND is set).
+        self._secrets = build_secret_provider()
+
+        raw_key = self._secrets.get_secret("SECRET_KEY", "") or ""
         if not raw_key:
-            sys.exit("FATAL: SECRET_KEY environment variable is not set. "
-                     "Generate one with: python3 -c \"import secrets; print(secrets.token_urlsafe(32))\"")
+            sys.exit("FATAL: SECRET_KEY is not set. Provide it via the environment "
+                     "(or SECRETS_BACKEND=aws|vault). Generate one with: "
+                     "python3 -c \"import secrets; print(secrets.token_urlsafe(32))\"")
         self.SECRET_KEY = raw_key.encode("utf-8")
         self.KEY_ID = os.getenv("KEY_ID", "key001")
         self.GUARD_BAND_KEYS = self._load_guard_band_keys(raw_key)
 
-        self.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+        self.ANTHROPIC_API_KEY = self._secrets.get_secret("ANTHROPIC_API_KEY", "") or ""
         self.DEBUG = os.getenv("DEBUG", "false").lower() == "true"
         # Lifetime stamped into each wrapped band (authenticated iat/exp). Bands
         # verify as expired past this window, independent of the replay ledger.
@@ -59,11 +66,12 @@ class Settings:
         origins_raw = os.getenv("ALLOWED_ORIGINS", "")
         self.ALLOWED_ORIGINS = [o.strip() for o in origins_raw.split(",") if o.strip()]
 
-        # Logging sinks (optional — omit to disable)
-        self.LOG_POSTGRES_DSN = os.getenv("LOG_POSTGRES_DSN", "")
+        # Logging sinks (optional — omit to disable). DSN and HEC token are
+        # secret-bearing, so they resolve through the secret provider.
+        self.LOG_POSTGRES_DSN = self._secrets.get_secret("LOG_POSTGRES_DSN", "") or ""
 
         self.LOG_SPLUNK_HEC_URL = os.getenv("LOG_SPLUNK_HEC_URL", "")
-        self.LOG_SPLUNK_HEC_TOKEN = os.getenv("LOG_SPLUNK_HEC_TOKEN", "")
+        self.LOG_SPLUNK_HEC_TOKEN = self._secrets.get_secret("LOG_SPLUNK_HEC_TOKEN", "") or ""
         self.LOG_SPLUNK_INDEX = os.getenv("LOG_SPLUNK_INDEX", "guard_bands")
         self.LOG_SPLUNK_SOURCE = os.getenv("LOG_SPLUNK_SOURCE", "guard-bands-api")
         self.LOG_SPLUNK_SSL_VERIFY = os.getenv("LOG_SPLUNK_SSL_VERIFY", "true").lower() == "true"
@@ -83,7 +91,7 @@ class Settings:
         self.SSO_HEADER_EMAIL = os.getenv("SSO_HEADER_EMAIL", "X-Forwarded-Email")
 
     def _load_guard_band_keys(self, fallback_key: str) -> dict[str, bytes]:
-        raw_keys = os.getenv("GUARD_BAND_KEYS", "")
+        raw_keys = self._secrets.get_secret("GUARD_BAND_KEYS", "") or ""
         if not raw_keys:
             return {self.KEY_ID: fallback_key.encode("utf-8")}
 

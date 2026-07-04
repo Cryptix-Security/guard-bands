@@ -1,0 +1,85 @@
+# Production-shape overlay for the Guard Bands stack.
+#
+# Usage (from the repo root):
+#   docker compose -f docker-compose.yml -f deploy/docker-compose.prod.yml \
+#     --env-file .env.production up -d --build
+#
+# What this overlay changes vs. the local dev stack:
+#   - Adds a Caddy TLS front door; nothing else publishes a host port.
+#   - Puts oauth2-proxy behind Caddy (no direct public access).
+#   - Runs Keycloak in production mode (`start`, not `start-dev`).
+#   - Adds restart policies and CPU/memory limits to every service.
+#
+# This is a TEMPLATE. By default Caddy issues a self-signed cert (`tls internal`)
+# so the stack runs in production shape locally. For a real domain, edit
+# deploy/Caddyfile (see notes there) and Caddy will obtain a Let's Encrypt
+# certificate automatically.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - oauth2-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 128M
+
+  # No longer publish the proxy directly — Caddy is the only ingress.
+  oauth2-proxy:
+    restart: unless-stopped
+    ports: []
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+  # Production Keycloak. Hostname/TLS are environment-specific — TLS is
+  # terminated at Caddy, so Keycloak runs HTTP behind the proxy.
+  keycloak:
+    command: start --import-realm
+    environment:
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: "xforwarded"
+      KC_HOSTNAME_STRICT: "false"
+      # For a real deployment set the external URL, e.g.:
+      # KC_HOSTNAME: "https://auth.your-domain.example"
+    restart: unless-stopped
+    ports: []
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 768M
+
+  app:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  postgres:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+volumes:
+  caddy_data:
+  caddy_config:

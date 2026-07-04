@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## v0.4.0-poc - 2026-07-04
+
+- Added a pluggable secret provider for secret-bearing settings (`SECRET_KEY`, `GUARD_BAND_KEYS`, API tokens): `SECRETS_BACKEND=env` (default), `aws` (AWS Secrets Manager), or `vault` (HashiCorp Vault KV v2). Cloud SDKs are optional extras (`guard-bands[aws]`, `guard-bands[vault]`).
+- Added a hardened production Compose overlay (`deploy/docker-compose.prod.yml`): Caddy TLS front door, no direct port exposure, Keycloak in production mode, restart policies, and CPU/memory limits.
+- Hardened the container image: runs as a non-root user (uid 10001) with a `/health` healthcheck and no bytecode/buffering.
+- Added `.env.production.example`, `docs/SECRETS.md`, and production-deployment guidance for the hardened stack.
+- Bumped version to 0.4.0.
 
 ## v0.3.2-poc - 2026-07-04
 

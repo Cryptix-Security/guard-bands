@@ -128,9 +128,10 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 | Limits | Per-user rate limiting and 50 KB content limits |
 | Cost guard | Preflight chat cost estimates, configurable threshold confirmation, and final actual cost reporting |
 | Audit logging | Structured JSON audit events to stdout, PostgreSQL, and Splunk HEC |
+| Secrets | Pluggable secret provider: environment (default), AWS Secrets Manager, or HashiCorp Vault |
 | Authentication | SSO via oauth2-proxy and Keycloak using OIDC |
 | Identity propagation | Keycloak user identity flows into audit events |
-| Deployment | Docker Compose stack for API, Postgres, Keycloak, and oauth2-proxy |
+| Deployment | Docker Compose stack for API, Postgres, Keycloak, and oauth2-proxy, plus a hardened production overlay (TLS front door, non-root image, resource limits) |
 | Supply-chain hygiene | Pinned dependencies, Dependabot updates, GitHub Actions CI, CodeQL scanning, and GitHub secret scanning |
 | Demo | Claude integration showing verification before trusted handling |
 
@@ -332,13 +333,12 @@ It is **not production-ready** as-is.
 
 Known production gaps include:
 
-- development secrets and defaults
-- Keycloak development-mode configuration
-- no TLS termination in the local Compose stack
-- single-node replay ledger only (in-memory or SQLite; no shared/distributed store)
-- no production key resolver or key-rotation workflow
+- the **default** Compose stack ships development secrets/defaults (production uses the secret provider and the hardened overlay — see below)
+- single-node replay ledger only (in-memory or SQLite; no shared/distributed store yet)
+- key rotation is a manual procedure (keys can resolve from a secret manager, but there is no automated rotation workflow)
+- authorization is a reference pattern, not a full policy engine
 
-The local Compose stack is intentionally evaluation-focused rather than production-hardened. See [`docs/PRODUCTION_DEPLOYMENT.md`](./docs/PRODUCTION_DEPLOYMENT.md) and [`QUICKSTART.md`](./QUICKSTART.md) for deployment hardening guidance.
+The default Compose stack is intentionally evaluation-focused. A hardened production overlay (TLS front door, non-root image, production Keycloak, resource limits) and a pluggable secret provider (env / AWS Secrets Manager / Vault) are provided — see [`docs/PRODUCTION_DEPLOYMENT.md`](./docs/PRODUCTION_DEPLOYMENT.md), [`docs/SECRETS.md`](./docs/SECRETS.md), and [`QUICKSTART.md`](./QUICKSTART.md).
 
 ---
 
