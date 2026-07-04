@@ -2,9 +2,14 @@
 
 ## Unreleased
 
+## v0.3.2-poc - 2026-07-04
+
 - Added configurable chat cost guardrails with a `/chat/estimate-cost` preflight endpoint.
 - Added threshold-based confirmation for `/chat` requests before calling the model.
 - Added actual cost reporting from provider token usage in successful `/chat` responses.
+- Added README badges for CI, CodeQL, release, Python version, and license.
+- Added a short README evaluation path for first-time visitors.
+- Enabled GitHub secret scanning and push protection for the repository.
 
 ## v0.3.1-poc - 2026-07-04
 

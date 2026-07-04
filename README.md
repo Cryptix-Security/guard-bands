@@ -1,5 +1,11 @@
 # Guard Bands
 
+[![CI](https://github.com/Cryptix-Security/guard-bands/actions/workflows/ci.yml/badge.svg)](https://github.com/Cryptix-Security/guard-bands/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Cryptix-Security/guard-bands/actions/workflows/codeql.yml/badge.svg)](https://github.com/Cryptix-Security/guard-bands/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/Cryptix-Security/guard-bands?include_prereleases&display_name=tag)](https://github.com/Cryptix-Security/guard-bands/releases)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)](https://github.com/Cryptix-Security/guard-bands/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+
 **Cryptographic boundaries for separating untrusted LLM content from trusted instructions and tool execution.**
 
 Guard Bands is a proof-of-concept security pattern for LLM applications. It wraps untrusted content with cryptographically verifiable boundaries so an application can distinguish between data that should be treated as inert and instructions that may affect behavior, policy, or tool calls.
@@ -13,6 +19,36 @@ The core project is the Guard Bands boundary mechanism. The POC also demonstrate
 - **Project site:** [guardbands.com](https://guardbands.com/)
 - **Cryptix Security:** [cryptix.com](https://cryptix.com/)
 - **Contact:** [mtoren@cryptix.com](mailto:mtoren@cryptix.com)
+
+---
+
+## Evaluate in 5 Minutes
+
+```bash
+git clone https://github.com/Cryptix-Security/guard-bands.git
+cd guard-bands
+cp .env.example .env
+python3 - <<'PY'
+from pathlib import Path
+import secrets
+
+path = Path(".env")
+text = path.read_text()
+text = text.replace("SECRET_KEY=", f"SECRET_KEY={secrets.token_urlsafe(32)}", 1)
+path.write_text(text)
+PY
+docker compose up --build
+```
+
+In another terminal:
+
+```bash
+make test
+make demo
+make reference-demo
+```
+
+`make demo` and `make reference-demo` do not require an LLM API key. See [`QUICKSTART.md`](./QUICKSTART.md) for full setup and SSO instructions.
 
 ---
 
@@ -95,7 +131,7 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 | Authentication | SSO via oauth2-proxy and Keycloak using OIDC |
 | Identity propagation | Keycloak user identity flows into audit events |
 | Deployment | Docker Compose stack for API, Postgres, Keycloak, and oauth2-proxy |
-| Supply-chain hygiene | Pinned dependencies, Dependabot updates, GitHub Actions CI, and CodeQL scanning |
+| Supply-chain hygiene | Pinned dependencies, Dependabot updates, GitHub Actions CI, CodeQL scanning, and GitHub secret scanning |
 | Demo | Claude integration showing verification before trusted handling |
 
 ---
@@ -301,9 +337,8 @@ Known production gaps include:
 - no TLS termination in the local Compose stack
 - single-node replay ledger only (in-memory or SQLite; no shared/distributed store)
 - no production key resolver or key-rotation workflow
-- no production deployment hardening profile
 
-See [`QUICKSTART.md`](./QUICKSTART.md) for additional production considerations.
+The local Compose stack is intentionally evaluation-focused rather than production-hardened. See [`docs/PRODUCTION_DEPLOYMENT.md`](./docs/PRODUCTION_DEPLOYMENT.md) and [`QUICKSTART.md`](./QUICKSTART.md) for deployment hardening guidance.
 
 ---
 

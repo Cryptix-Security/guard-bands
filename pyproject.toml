@@ -1,6 +1,6 @@
 [project]
 name = "guard-bands"
-version = "0.3.0"
+version = "0.3.2"
 description = "Cryptographic boundaries for separating untrusted LLM content from trusted instructions and tool execution."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -27,4 +27,3 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-
