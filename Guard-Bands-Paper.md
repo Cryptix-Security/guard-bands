@@ -13,7 +13,7 @@ PSK-HMAC Guard Bands are a cryptographic defense-in-depth pattern for creating e
 
 Guard Bands do not make an LLM intrinsically safe, truthful, or policy-compliant. Their purpose is narrower and more concrete: make untrusted content inert by default, require explicit verification before trusted handling, and give the application a cryptographic signal it can enforce outside the model.
 
-The current repository contains a working proof of concept, released as `v0.1.0-poc`, with FastAPI endpoints, HMAC-based wrapping and verification, canonical context serialization, app-side fail-closed tool-call enforcement, pytest coverage, GitHub Actions CI, pinned dependencies, Dependabot maintenance, and operational documentation.
+The current repository contains a working proof of concept, released as `v0.4.0-poc`, with FastAPI endpoints; HMAC-based wrapping and verification that authenticates the full marker metadata (protocol version, key id, issuer, and issued/expiry timestamps); authenticated expiry for fail-closed freshness; a persistent replay ledger; canonical context serialization; app-side fail-closed tool-call enforcement; a pluggable secret provider (environment, AWS Secrets Manager, or HashiCorp Vault); preflight LLM cost controls; SSO, structured audit logging, and a hardened production deployment overlay; pytest coverage; GitHub Actions CI; CodeQL and secret scanning; pinned dependencies; Dependabot maintenance; and operational documentation.
 
 ## The Core Problem: Single-Channel Vulnerability
 
@@ -53,18 +53,28 @@ expires (fail closed) even without an external replay ledger.
 
 The marker metadata includes:
 
+- `v`: the protocol version, bound into the signature
 - `nonce`: a fresh value generated when content is wrapped
-- `hash`: a SHA-256 hash of the exact content body
+- `iat` / `exp`: authenticated issued-at and expiry timestamps
 - `mac`: an HMAC-SHA256 signature over the canonical payload
-- `kid`: a key identifier for future key-selection and rotation workflows
+- `kid`: a key identifier used for key selection and rotation
+- `iss`: the issuer that minted the band, recorded for provenance
 
-The current POC authenticates this canonical payload:
+Every one of these fields is authenticated by the MAC, so none can be forged, tampered with, or downgraded.
+
+The current POC authenticates this canonical payload, which binds the content, the context, and all marker metadata:
 
 ```json
 {
+  "alg": "GBv1-HMAC-SHA256",
   "content": "<exact content body>",
   "context": { "...": "..." },
-  "nonce": "<guard-band nonce>"
+  "exp": 1735689600,
+  "iat": 1735688700,
+  "iss": "<issuer>",
+  "kid": "<key id>",
+  "nonce": "<guard-band nonce>",
+  "v": "1"
 }
 ```
 
@@ -82,7 +92,7 @@ The canonical serializer uses UTF-8 JSON, sorted keys, compact separators, unesc
 
 3. **Verify**
 
-   Before sensitive handling, the application verifies the hash, MAC, nonce, and expected context.
+   Before sensitive handling, the application verifies the MAC, protocol version, nonce, key id, issuer, expiry, and expected context.
 
 4. **Enforce**
 
@@ -118,23 +128,29 @@ The model may read or summarize the verified content, but the surrounding applic
 
 ## Current POC Implementation
 
-The `v0.1.0-poc` implementation includes:
+The `v0.4.0-poc` implementation includes:
 
-- HMAC-SHA256 Guard Band signing and verification
-- SHA-256 content hashing
+- HMAC-SHA256 Guard Band signing and verification with a domain-separated algorithm tag
+- full marker-metadata authentication (protocol version, key id, issuer, and issued/expiry timestamps bound into the MAC)
+- authenticated expiry for fail-closed freshness, independent of any external store
 - canonical context serialization
 - nonce authentication in the MAC payload
-- FastAPI `/wrap`, `/verify`, and `/chat` endpoints
+- a persistent replay ledger (in-memory or SQLite) for same-context single-use enforcement
+- FastAPI `/wrap`, `/verify`, and `/chat` endpoints, plus request-body verification middleware
+- a reference support-ticket workflow with explicit authorization checks
 - 50 KB request content limits
 - per-user or per-IP rate limiting
+- preflight LLM cost estimation with a configurable threshold and per-user actual-cost logging
+- a pluggable secret provider: environment, AWS Secrets Manager, or HashiCorp Vault
 - structured audit logging to stdout, with optional PostgreSQL and Splunk HEC sinks
 - SSO-aware identity propagation through oauth2-proxy and Keycloak
 - app-side fail-closed enforcement for guard-banded chat content
-- pytest coverage for crypto, API behavior, replay checks, and tool-call enforcement
+- a hardened production deployment overlay (TLS termination, non-root image, resource limits)
+- pytest coverage for crypto, API behavior, replay checks, tool-call enforcement, secrets, and cost logging
 - GitHub Actions CI for Python 3.11 and 3.12
-- CodeQL code scanning workflow
+- CodeQL code scanning and GitHub secret scanning
 - pinned dependencies with Dependabot configured for pip and GitHub Actions
-- a `v0.1.0-poc` GitHub release
+- a `v0.4.0-poc` GitHub release
 
 The implementation is intentionally a proof of concept. It demonstrates the boundary pattern and enforcement hooks, not a complete production security system.
 
@@ -144,7 +160,7 @@ The implementation is intentionally a proof of concept. It demonstrates the boun
 
 **Forgery resistance:** Attackers cannot create valid Guard Bands without access to the signing key.
 
-**Tamper detection:** Any modification to the wrapped content changes the content hash and invalidates verification.
+**Tamper detection:** Any modification to the wrapped content or its authenticated metadata invalidates the MAC, so verification fails.
 
 **Context binding:** Wrapped content verifies only under the expected context, reducing replay across tenants, users, workflows, or policy paths.
 
@@ -195,18 +211,18 @@ or under a more privileged tool path:
 }
 ```
 
-Replay within the exact same context is an application policy decision. Production systems should pair Guard Bands with one or both of these controls:
+Replay within the exact same context is handled by two controls, both present in the current POC:
 
-- a nonce ledger that records consumed nonces and rejects reuse
-- an expiration timestamp or time bucket included in the signed context
+- a persistent nonce ledger (in-memory or SQLite) that records consumed nonces and rejects reuse within a context
+- an authenticated expiry (`exp`) bound into every band and enforced only after the MAC proves it genuine, so a tampered expiry cannot extend a band's lifetime and a band fails closed once stale even without a ledger
 
-The current POC authenticates the nonce and exposes it on successful verification, but it does not include a persistent nonce ledger or built-in expiration validation.
+For multi-replica deployments, the single-node SQLite ledger should be replaced with a shared datastore that provides atomic single-use insertion keyed on the canonical context, key id, and nonce.
 
 ## Key Management
 
 Guard Bands are only as strong as the signing-key lifecycle.
 
-The current POC uses one configured `SECRET_KEY` and accepts `key_id` as public marker metadata. That is enough for local evaluation, but production deployments should use a key resolver that chooses verification keys by `kid`, environment, tenant, and rotation state.
+The current POC resolves signing keys through a pluggable secret provider (environment, AWS Secrets Manager, or HashiCorp Vault) and supports a key map that selects the active signing key by `kid` while retaining recently retired keys for verification. Because `kid` is authenticated by the MAC, a band cannot be tricked into verifying under the wrong key. That is enough for a single-node pilot, but production deployments should extend it with environment- and tenant-scoped keys and an automated rotation workflow.
 
 Production expectations include:
 
@@ -300,6 +316,9 @@ The tests cover:
 - forged marker rejection
 - unwrapped content rejection
 - nonce tampering rejection
+- marker-metadata tampering rejection (key id, issuer, expiry)
+- expiry enforcement
+- property-based fuzzing of the marker parser
 - API wrap/verify behavior
 - replay under a different context
 - LLM tool-call enforcement when the model skips verification
@@ -307,6 +326,8 @@ The tests cover:
 - application-context authority over model-supplied tool input
 - failed verification before further model calls
 - malformed Guard Band marker handling
+- secret-provider resolution (environment, AWS, Vault)
+- per-user actual-cost logging on the chat path
 
 CI runs the suite on Python 3.11 and 3.12.
 
@@ -332,12 +353,10 @@ Operational value includes:
 
 Future work should include:
 
-- production key resolvers and rotation flows
-- persistent nonce ledgers
-- signed expiration policies
+- automated key rotation workflows and environment- or tenant-scoped key resolvers
+- a shared, distributed replay ledger for multi-replica deployments
 - serializer versioning
-- policy-path schemas
-- support for multiple signing keys and trust domains
+- policy-path schemas and integration with a dedicated authorization policy engine
 - deeper integration with identity and authorization systems
 - formal security review and bypass testing
 - standardized marker formats for interoperability
