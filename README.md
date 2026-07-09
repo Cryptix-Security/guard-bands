@@ -354,6 +354,7 @@ Key files include:
 | `reference_app/` | Small support-ticket reference workflow |
 | `docs/AUTHORIZATION.md` | Authorization pattern for sensitive tool calls |
 | `docs/ARCHITECTURE.md` | Architecture, trust boundaries, and threat model |
+| `docs/OWASP_LLM_COVERAGE.md` | Mapping to the OWASP Top 10 for LLM Applications (2025) |
 | `docs/API_EXAMPLES.md` | Curl examples for wrap, verify, replay checks, and chat |
 | `docs/COST_GUARD.md` | Preflight estimate, threshold confirmation, and final cost reporting |
 | `docs/DEMO.md` | Visual flow and terminal-style demo |
