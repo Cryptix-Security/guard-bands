@@ -238,7 +238,8 @@ curl -X POST "http://localhost:8000/verify" \
   "valid": true,
   "content": "User document content here",
   "nonce": "abc123...",
-  "key_id": "key001"
+  "key_id": "key001",
+  "version": "1"
 }
 ```
 
@@ -333,8 +334,9 @@ result = verify_guard_bands(
 ```
 
 Verification checks:
-- Content hash matches
-- MAC signature is valid
+- MAC signature is valid (the sole integrity guarantee — content hash is informational-only and not checked here)
+- Protocol version, key id, and issuer are authenticated
+- Band has not expired (`iat`/`exp`)
 - Context matches exactly
 
 ### 4. Safe Processing
