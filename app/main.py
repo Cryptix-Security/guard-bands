@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
     await audit.shutdown()
 
 
-app = FastAPI(title="Guard Bands POC", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="Guard Bands POC", version="0.5.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

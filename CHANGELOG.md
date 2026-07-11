@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.5.0-poc - 2026-07-11
 
 - Added a two-channel (data-plane / control-plane) reference architecture (`dual_channel/`): untrusted content and trusted instructions travel through two separate services deployable on different ports, joined at a single cryptographic verification point. The data plane can only wrap content (no tool or instruction surface, marker smuggling rejected at ingest); the control plane admits data only when the MAC-authenticated key id, issuer, and `channel: data` context binding prove it came through the data plane, and takes instructions exclusively from its own authenticated channel. Includes `make dual-channel-demo`, invariant tests, and `docs/DUAL_CHANNEL.md`.
 
