@@ -177,6 +177,14 @@ This demo shows a support-ticket workflow where Guard Bands verification must pa
 make reference-demo
 ```
 
+### Run the Dual-Channel Demo
+
+This demo runs untrusted data and trusted instructions through two separate services (deployable on different ports) with a cryptographic join point: the control plane only accepts data signed by the data plane, and instructions never come from content. See [`docs/DUAL_CHANNEL.md`](docs/DUAL_CHANNEL.md).
+
+```bash
+make dual-channel-demo
+```
+
 ### Run Parser Benchmarks
 
 ```bash

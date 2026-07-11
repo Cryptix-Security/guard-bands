@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added a two-channel (data-plane / control-plane) reference architecture (`dual_channel/`): untrusted content and trusted instructions travel through two separate services deployable on different ports, joined at a single cryptographic verification point. The data plane can only wrap content (no tool or instruction surface, marker smuggling rejected at ingest); the control plane admits data only when the MAC-authenticated key id, issuer, and `channel: data` context binding prove it came through the data plane, and takes instructions exclusively from its own authenticated channel. Includes `make dual-channel-demo`, invariant tests, and `docs/DUAL_CHANNEL.md`.
+
 ## v0.4.0-poc - 2026-07-04
 
 - Added a pluggable secret provider for secret-bearing settings (`SECRET_KEY`, `GUARD_BAND_KEYS`, API tokens): `SECRETS_BACKEND=env` (default), `aws` (AWS Secrets Manager), or `vault` (HashiCorp Vault KV v2). Cloud SDKs are optional extras (`guard-bands[aws]`, `guard-bands[vault]`).

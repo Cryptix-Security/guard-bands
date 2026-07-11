@@ -46,9 +46,10 @@ In another terminal:
 make test
 make demo
 make reference-demo
+make dual-channel-demo
 ```
 
-`make demo` and `make reference-demo` do not require an LLM API key. See [`QUICKSTART.md`](./QUICKSTART.md) for full setup and SSO instructions.
+The demos do not require an LLM API key. See [`QUICKSTART.md`](./QUICKSTART.md) for full setup and SSO instructions.
 
 ---
 
@@ -352,8 +353,10 @@ Key files include:
 | `app/authorization.py` | Minimal role/action authorization example |
 | `app/crypto.py` | Guard Band wrapping and verification logic |
 | `reference_app/` | Small support-ticket reference workflow |
+| `dual_channel/` | Two-channel (data-plane / control-plane) reference architecture |
 | `docs/AUTHORIZATION.md` | Authorization pattern for sensitive tool calls |
 | `docs/ARCHITECTURE.md` | Architecture, trust boundaries, and threat model |
+| `docs/DUAL_CHANNEL.md` | Separate data/control channels with a cryptographic join point |
 | `docs/OWASP_LLM_COVERAGE.md` | Mapping to the OWASP Top 10 for LLM Applications (2025) |
 | `docs/API_EXAMPLES.md` | Curl examples for wrap, verify, replay checks, and chat |
 | `docs/COST_GUARD.md` | Preflight estimate, threshold confirmation, and final cost reporting |
