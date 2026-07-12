@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.6.0-poc - 2026-07-11
 
 - Added Ed25519 signing to the core crypto alongside HMAC-SHA256: resolver keys may be raw bytes (HMAC), Ed25519 private keys (sign + verify), or Ed25519 public keys (verification-only). The algorithm tag is derived from the key type and bound into the authenticated payload, so cross-algorithm confusion fails closed. Includes keypair helpers and `make dual-channel-keys`.
 - Gave the two-channel planes true cryptographic role separation: the data plane holds the Ed25519 private key, the control plane holds only the public key and cannot forge data-plane provenance. Keys resolve through the pluggable secret provider with **no development fallback** — both services fail closed at startup if key material is missing or malformed.

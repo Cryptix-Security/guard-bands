@@ -1,6 +1,6 @@
 [project]
 name = "guard-bands"
-version = "0.5.0"
+version = "0.6.0"
 description = "Cryptographic boundaries for separating untrusted LLM content from trusted instructions and tool execution."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
