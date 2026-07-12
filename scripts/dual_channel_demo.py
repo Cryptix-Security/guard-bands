@@ -7,15 +7,26 @@ deployment: two processes on different ports) and shows that:
 2. The control plane accepts data only with a valid data-plane signature.
 3. Instructions inside a document have no effect on action selection.
 4. Tampered or unwrapped content is rejected fail-closed.
+5. The control plane holds only the public key and cannot forge bands.
 
 No LLM API key required.
 """
 
+import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+# The planes have no development fallback keys (fail closed), so the demo
+# mints a fresh Ed25519 keypair: private -> data plane, public -> control plane.
+if not (os.environ.get("DUAL_CHANNEL_SIGNING_KEY") and os.environ.get("DUAL_CHANNEL_VERIFY_KEY")):
+    from app.crypto import generate_ed25519_keypair
+
+    _private_b64, _public_b64 = generate_ed25519_keypair()
+    os.environ["DUAL_CHANNEL_SIGNING_KEY"] = _private_b64
+    os.environ["DUAL_CHANNEL_VERIFY_KEY"] = _public_b64
 
 from fastapi.testclient import TestClient
 
@@ -97,6 +108,14 @@ def main() -> None:
         "documents": [{"wrapped_content": malicious_document, "context": wrapped["context"]}],
     })
     print(response.status_code, response.json())
+
+    print_step("7. The control plane cannot forge data-plane provenance")
+    try:
+        control_plane.crypto.wrap_content("forged block", wrapped["context"])
+        print("UNEXPECTED: control plane was able to sign")
+    except ValueError as error:
+        print(f"wrap_content on control plane -> ValueError: {error}")
+        print("(Ed25519 role separation: it holds only the public key)")
 
     print("\nDemo complete: two channels, one cryptographic join point.")
 

@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from dual_channel import control_plane, data_plane
@@ -132,3 +133,29 @@ def test_control_plane_rejects_cross_tenant_document():
     wrapped = ingest_document(tenant_id="tenant-b")
     response = execute("summarize_document", [wrapped], tenant_id="tenant-a")
     assert response.status_code == 403
+
+
+def test_control_plane_key_is_verification_only():
+    # True role separation: the control plane holds only the Ed25519 public
+    # key, so even full compromise of this service cannot forge data-plane
+    # provenance.
+    with pytest.raises(ValueError, match="verification-only"):
+        control_plane.crypto.wrap_content("forged block", {"channel": "data"})
+
+
+def test_data_plane_fails_closed_without_signing_key(monkeypatch):
+    monkeypatch.delenv("DUAL_CHANNEL_SIGNING_KEY", raising=False)
+    with pytest.raises(SystemExit):
+        data_plane.load_signing_key()
+
+
+def test_control_plane_fails_closed_without_verify_key(monkeypatch):
+    monkeypatch.delenv("DUAL_CHANNEL_VERIFY_KEY", raising=False)
+    with pytest.raises(SystemExit):
+        control_plane.load_verify_key()
+
+
+def test_key_loading_rejects_garbage_key_material(monkeypatch):
+    monkeypatch.setenv("DUAL_CHANNEL_SIGNING_KEY", "not-a-real-key")
+    with pytest.raises(SystemExit):
+        data_plane.load_signing_key()

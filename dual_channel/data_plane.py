@@ -7,32 +7,51 @@ runs as its own process on its own port (or host/network segment):
 
     uvicorn dual_channel.data_plane:app --port 8001
 
-Everything it emits is bound to `channel: data` and signed with the
-data-plane key and issuer, so a downstream control plane can cryptographically
-prove which channel a piece of content entered through.
+The data plane is the sole holder of the Ed25519 private key
+(DUAL_CHANNEL_SIGNING_KEY, resolved through the secret provider — no
+development fallback). Everything it emits is bound to `channel: data` and
+signed with the data-plane key id and issuer, so a downstream control plane
+can cryptographically prove which channel a piece of content entered through.
 """
 
-import os
+import sys
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.crypto import GuardBandCrypto, StaticKeyResolver
+from app.crypto import GuardBandCrypto, StaticKeyResolver, load_ed25519_private_key
 from app.models import CONTENT_MAX_BYTES
+from app.secrets_provider import build_secret_provider
+from dual_channel import DATA_PLANE_ISSUER, DATA_PLANE_KEY_ID
 
-DATA_PLANE_KEY_ID = "data-plane"
-DATA_PLANE_ISSUER = "data-plane"
-
-
-def _build_crypto() -> GuardBandCrypto:
-    secret = os.getenv("DUAL_CHANNEL_SECRET_KEY", "dual-channel-dev-secret").encode("utf-8")
-    return GuardBandCrypto(
-        key_resolver=StaticKeyResolver({DATA_PLANE_KEY_ID: secret}, DATA_PLANE_KEY_ID)
-    )
+KEYGEN_HINT = (
+    "Generate a keypair with: make dual-channel-keys "
+    "(or: python3 -c \"from app.crypto import generate_ed25519_keypair as g; "
+    "priv, pub = g(); print(priv); print(pub)\")"
+)
 
 
-crypto = _build_crypto()
-app = FastAPI(title="Guard Bands Data Plane", version="0.1.0")
+def load_signing_key():
+    """Resolve the data plane's Ed25519 private key. Fail closed if absent."""
+    encoded = build_secret_provider().get_secret("DUAL_CHANNEL_SIGNING_KEY", "") or ""
+    if not encoded:
+        sys.exit(
+            "FATAL: DUAL_CHANNEL_SIGNING_KEY is not set. The data plane has no "
+            f"development fallback key. {KEYGEN_HINT}"
+        )
+    try:
+        return load_ed25519_private_key(encoded)
+    except Exception:
+        sys.exit(
+            "FATAL: DUAL_CHANNEL_SIGNING_KEY is not a valid base64url raw "
+            f"Ed25519 private key. {KEYGEN_HINT}"
+        )
+
+
+crypto = GuardBandCrypto(
+    key_resolver=StaticKeyResolver({DATA_PLANE_KEY_ID: load_signing_key()}, DATA_PLANE_KEY_ID)
+)
+app = FastAPI(title="Guard Bands Data Plane", version="0.2.0")
 
 
 class IngestRequest(BaseModel):

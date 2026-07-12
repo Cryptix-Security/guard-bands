@@ -6,36 +6,58 @@ separation at the join point:
 - Instructions are taken exclusively from this service's authenticated
   request body. Document text is never parsed for instructions.
 - Data is accepted only if it carries a valid data-plane signature (key id,
-  issuer, and a `channel: data` context binding all authenticated by the MAC).
-  Raw text, tampered blocks, or blocks minted by anything other than the data
-  plane are rejected — fail closed.
+  issuer, and a `channel: data` context binding all authenticated by the
+  Ed25519 signature). Raw text, tampered blocks, or blocks minted by anything
+  other than the data plane are rejected — fail closed.
+
+The control plane holds only the Ed25519 **public** key
+(DUAL_CHANNEL_VERIFY_KEY, resolved through the secret provider — no
+development fallback). It can verify bands but is cryptographically unable to
+mint them: a compromised control plane cannot forge data-plane provenance.
 
 In a deployment it runs as its own process on its own port:
 
     uvicorn dual_channel.control_plane:app --port 8002
 """
 
-import os
+import sys
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app.crypto import GuardBandCrypto, StaticKeyResolver
-from dual_channel.data_plane import DATA_PLANE_ISSUER, DATA_PLANE_KEY_ID
+from app.crypto import GuardBandCrypto, StaticKeyResolver, load_ed25519_public_key
+from app.secrets_provider import build_secret_provider
+from dual_channel import DATA_PLANE_ISSUER, DATA_PLANE_KEY_ID
+
+KEYGEN_HINT = (
+    "Generate a keypair with: make dual-channel-keys "
+    "(or: python3 -c \"from app.crypto import generate_ed25519_keypair as g; "
+    "priv, pub = g(); print(priv); print(pub)\")"
+)
 
 
-def _build_crypto() -> GuardBandCrypto:
-    # The control plane holds the data-plane key for verification. With HMAC
-    # the same secret signs and verifies; production deployments should scope
-    # signing access to the data plane only (see docs/KEY_MANAGEMENT.md).
-    secret = os.getenv("DUAL_CHANNEL_SECRET_KEY", "dual-channel-dev-secret").encode("utf-8")
-    return GuardBandCrypto(
-        key_resolver=StaticKeyResolver({DATA_PLANE_KEY_ID: secret}, DATA_PLANE_KEY_ID)
-    )
+def load_verify_key():
+    """Resolve the data plane's Ed25519 public key. Fail closed if absent."""
+    encoded = build_secret_provider().get_secret("DUAL_CHANNEL_VERIFY_KEY", "") or ""
+    if not encoded:
+        sys.exit(
+            "FATAL: DUAL_CHANNEL_VERIFY_KEY is not set. The control plane has "
+            f"no development fallback key. {KEYGEN_HINT}"
+        )
+    try:
+        return load_ed25519_public_key(encoded)
+    except Exception:
+        sys.exit(
+            "FATAL: DUAL_CHANNEL_VERIFY_KEY is not a valid base64url raw "
+            f"Ed25519 public key. {KEYGEN_HINT}"
+        )
 
 
-crypto = _build_crypto()
-app = FastAPI(title="Guard Bands Control Plane", version="0.1.0")
+# Verification-only resolver: this service cannot sign bands at all.
+crypto = GuardBandCrypto(
+    key_resolver=StaticKeyResolver({DATA_PLANE_KEY_ID: load_verify_key()}, DATA_PLANE_KEY_ID)
+)
+app = FastAPI(title="Guard Bands Control Plane", version="0.2.0")
 
 READ_ONLY_ACTIONS = {"summarize_document"}
 SENSITIVE_ACTIONS = {"issue_refund"}
