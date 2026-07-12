@@ -7,12 +7,29 @@ import re
 import time
 from typing import Any
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+)
+
 
 SUPPORTED_PROTOCOL_VERSION = "1"
-# Domain-separation / algorithm tag bound into every MAC. Bump this (and add a
-# new branch in extract_and_verify) before introducing a second MAC algorithm
-# so an attacker cannot downgrade an authenticated band to a weaker scheme.
+# Domain-separation / algorithm tags bound into every signature. The tag is
+# derived from the resolved key's type and authenticated inside the payload,
+# so a band signed under one algorithm can never verify under another
+# (no downgrade or cross-algorithm confusion).
 MAC_ALG = "GBv1-HMAC-SHA256"
+ED25519_ALG = "GBv1-Ed25519"
+_SIGNATURE_LENGTHS = {MAC_ALG: 32, ED25519_ALG: 64}
+
+# Keys accepted by the resolver: raw bytes select HMAC-SHA256 (symmetric —
+# whoever can verify can also sign); Ed25519 keys select asymmetric signing,
+# where a public key is verification-only and cannot forge bands. That split
+# is what gives the two-channel architecture true cryptographic role
+# separation (see docs/DUAL_CHANNEL.md).
+GuardBandKey = bytes | Ed25519PrivateKey | Ed25519PublicKey
+
 DEFAULT_TTL_SECONDS = 900
 DEFAULT_ISSUER = "anonymous"
 
@@ -40,6 +57,47 @@ def canonical_context(context: dict | None) -> str:
     return canonical_json(context or {})
 
 
+def key_algorithm(key: GuardBandKey) -> str:
+    """Return the authenticated algorithm tag selected by a key's type."""
+    if isinstance(key, (Ed25519PrivateKey, Ed25519PublicKey)):
+        return ED25519_ALG
+    if isinstance(key, (bytes, bytearray)):
+        return MAC_ALG
+    raise TypeError(f"Unsupported key type: {type(key).__name__}")
+
+
+def _b64url_no_pad(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(encoded: str) -> bytes:
+    return base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))
+
+
+def generate_ed25519_keypair() -> tuple[str, str]:
+    """Generate an Ed25519 keypair as (private_b64url, public_b64url).
+
+    The private key belongs only on signing services (e.g. the data plane);
+    the public key is safe to distribute to verifiers, which cannot use it
+    to forge bands.
+    """
+    private = Ed25519PrivateKey.generate()
+    return (
+        _b64url_no_pad(private.private_bytes_raw()),
+        _b64url_no_pad(private.public_key().public_bytes_raw()),
+    )
+
+
+def load_ed25519_private_key(encoded: str) -> Ed25519PrivateKey:
+    """Load a base64url-encoded raw Ed25519 private key."""
+    return Ed25519PrivateKey.from_private_bytes(_b64url_decode(encoded.strip()))
+
+
+def load_ed25519_public_key(encoded: str) -> Ed25519PublicKey:
+    """Load a base64url-encoded raw Ed25519 public key."""
+    return Ed25519PublicKey.from_public_bytes(_b64url_decode(encoded.strip()))
+
+
 def canonical_mac_payload(
     content: str,
     context: dict | None,
@@ -50,15 +108,16 @@ def canonical_mac_payload(
     issuer: str,
     issued_at: int,
     expires_at: int,
+    alg: str = MAC_ALG,
 ) -> bytes:
-    """Serialize the exact payload authenticated by the Guard Band MAC.
+    """Serialize the exact payload authenticated by the Guard Band signature.
 
     Every field that travels in the marker — algorithm tag, protocol version,
     key id, issuer, and the issued/expiry timestamps — is bound here so none of
-    them can be tampered with or downgraded without invalidating the MAC.
+    them can be tampered with or downgraded without invalidating the signature.
     """
     return canonical_json({
-        "alg": MAC_ALG,
+        "alg": alg,
         "content": content,
         "context": context or {},
         "exp": expires_at,
@@ -173,29 +232,39 @@ def _parse_params(raw_params: str, expected_keys: set[str]) -> tuple[dict[str, s
 
 
 class StaticKeyResolver:
-    """Small key resolver for POC deployments and tests."""
+    """Small key resolver for POC deployments and tests.
 
-    def __init__(self, keys: dict[str, bytes], signing_key_id: str = "key001") -> None:
+    Keys may be raw bytes (HMAC-SHA256), Ed25519 private keys (sign and
+    verify), or Ed25519 public keys (verify-only). A resolver holding only a
+    public key can verify bands but is cryptographically unable to mint them.
+    """
+
+    def __init__(self, keys: dict[str, GuardBandKey], signing_key_id: str = "key001") -> None:
         if not keys:
             raise ValueError("At least one signing key is required")
         if signing_key_id not in keys:
             raise ValueError("Signing key id must exist in key map")
-        for key_id in keys:
+        for key_id, key in keys.items():
             if not KEY_ID_PATTERN.fullmatch(key_id):
                 raise ValueError(f"Invalid key id: {key_id}")
+            key_algorithm(key)  # raises TypeError on unsupported key types
         self._keys = keys
         self.signing_key_id = signing_key_id
 
-    def get_signing_key(self, key_id: str | None = None) -> tuple[str, bytes]:
+    def get_signing_key(self, key_id: str | None = None) -> tuple[str, GuardBandKey]:
         selected_key_id = key_id or self.signing_key_id
         if not KEY_ID_PATTERN.fullmatch(selected_key_id):
             raise ValueError("Invalid signing key id format")
         key = self._keys.get(selected_key_id)
         if key is None:
             raise ValueError(f"Unknown signing key id: {selected_key_id}")
+        if isinstance(key, Ed25519PublicKey):
+            raise ValueError(
+                f"Key id {selected_key_id} is verification-only and cannot sign"
+            )
         return selected_key_id, key
 
-    def get_verification_key(self, key_id: str) -> bytes | None:
+    def get_verification_key(self, key_id: str) -> GuardBandKey | None:
         return self._keys.get(key_id)
 
 
@@ -230,7 +299,7 @@ class GuardBandCrypto:
         content: str,
         context: dict,
         nonce: str,
-        secret_key: bytes,
+        secret_key: GuardBandKey,
         *,
         version: str,
         key_id: str,
@@ -238,14 +307,25 @@ class GuardBandCrypto:
         issued_at: int,
         expires_at: int,
     ) -> str:
-        """Generate HMAC over content + context + all authenticated metadata."""
+        """Sign content + context + all authenticated metadata.
+
+        The algorithm follows the key type: bytes → HMAC-SHA256, Ed25519
+        private key → Ed25519 signature. A verification-only public key
+        cannot sign and raises.
+        """
+        alg = key_algorithm(secret_key)
         message = canonical_mac_payload(
             content, context, nonce,
             version=version, key_id=key_id, issuer=issuer,
-            issued_at=issued_at, expires_at=expires_at,
+            issued_at=issued_at, expires_at=expires_at, alg=alg,
         )
-        h = hmac.new(secret_key, message, hashlib.sha256)
-        return base64.b64encode(h.digest()).decode('utf-8')
+        if isinstance(secret_key, Ed25519PublicKey):
+            raise ValueError("Ed25519 public key is verification-only and cannot sign")
+        if isinstance(secret_key, Ed25519PrivateKey):
+            signature = secret_key.sign(message)
+        else:
+            signature = hmac.new(secret_key, message, hashlib.sha256).digest()
+        return base64.b64encode(signature).decode('utf-8')
 
     def verify_mac(
         self,
@@ -253,7 +333,7 @@ class GuardBandCrypto:
         context: dict,
         nonce: str,
         provided_mac: str,
-        secret_key: bytes,
+        secret_key: GuardBandKey,
         *,
         version: str,
         key_id: str,
@@ -261,7 +341,25 @@ class GuardBandCrypto:
         issued_at: int,
         expires_at: int,
     ) -> bool:
-        """Verify HMAC matches the recomputed authenticated payload."""
+        """Verify the signature over the recomputed authenticated payload."""
+        alg = key_algorithm(secret_key)
+        if alg == ED25519_ALG:
+            message = canonical_mac_payload(
+                content, context, nonce,
+                version=version, key_id=key_id, issuer=issuer,
+                issued_at=issued_at, expires_at=expires_at, alg=alg,
+            )
+            public_key = (
+                secret_key.public_key()
+                if isinstance(secret_key, Ed25519PrivateKey)
+                else secret_key
+            )
+            try:
+                public_key.verify(base64.b64decode(provided_mac), message)
+                return True
+            except (InvalidSignature, ValueError):
+                return False
+
         expected_mac = self.generate_mac(
             content, context, nonce, secret_key,
             version=version, key_id=key_id, issuer=issuer,
@@ -383,12 +481,15 @@ class GuardBandCrypto:
                 return {"valid": False, "error": f"Unknown key id: {key_id}"}
 
             provided_mac = end_dict["mac"]
-            mac_error = _decode_base64_field(provided_mac, 32, "MAC")
+            expected_length = _SIGNATURE_LENGTHS[key_algorithm(verification_key)]
+            mac_error = _decode_base64_field(provided_mac, expected_length, "MAC")
             if mac_error:
                 return {"valid": False, "error": mac_error}
 
-            # Verify MAC — the sole integrity and authenticity check. It binds
-            # content, context, nonce, version, key id, issuer, and lifetime.
+            # Verify the signature — the sole integrity and authenticity check.
+            # It binds content, context, nonce, version, key id, issuer,
+            # lifetime, and the algorithm tag (derived from the key type, so
+            # cross-algorithm confusion fails closed).
             if not self.verify_mac(
                 content, context, nonce, provided_mac, verification_key,
                 version=version, key_id=key_id, issuer=issuer,
