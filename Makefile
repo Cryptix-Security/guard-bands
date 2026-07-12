@@ -1,4 +1,4 @@
-.PHONY: install-dev test demo reference-demo dual-channel-demo bench run
+.PHONY: install-dev test demo reference-demo dual-channel-demo dual-channel-keys bench run
 
 install-dev:
 	python -m pip install -r requirements-dev.txt
@@ -14,6 +14,11 @@ reference-demo:
 
 dual-channel-demo:
 	python scripts/dual_channel_demo.py
+
+# Emit a fresh Ed25519 keypair in env-file form:
+#   make dual-channel-keys > .env.dual-channel
+dual-channel-keys:
+	@python -c "from app.crypto import generate_ed25519_keypair as g; priv, pub = g(); print('DUAL_CHANNEL_SIGNING_KEY=' + priv); print('DUAL_CHANNEL_VERIFY_KEY=' + pub)"
 
 bench:
 	python scripts/benchmark_parser.py

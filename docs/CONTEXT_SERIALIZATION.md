@@ -20,7 +20,10 @@ without invalidating the MAC:
 
 The `alg` tag provides domain separation and blocks algorithm downgrade; `iat`
 and `exp` bind the band's lifetime so freshness is enforced from authenticated
-data (fail closed) rather than from an external ledger alone.
+data (fail closed) rather than from an external ledger alone. Bands signed
+with an Ed25519 key carry `"alg": "GBv1-Ed25519"`; the tag follows the
+resolved key's type, so a band can never verify under a different algorithm
+than the one it was signed with.
 
 The canonical serializer uses:
 

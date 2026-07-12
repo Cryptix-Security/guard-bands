@@ -122,7 +122,7 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 
 | Layer | Implemented |
 |---|---|
-| Core crypto | HMAC-SHA256 wrapping with a domain-separated algorithm tag, full marker-metadata authentication (version, key id, issuer, lifetime), context binding, authenticated issued/expiry freshness, and tamper detection |
+| Core crypto | HMAC-SHA256 and Ed25519 signing with domain-separated algorithm tags, full marker-metadata authentication (version, key id, issuer, lifetime), context binding, authenticated issued/expiry freshness, tamper detection, and verification-only public keys for split-trust deployments |
 | API | FastAPI `/wrap`, `/verify`, and `/chat` endpoints |
 | FastAPI integration | Route middleware that verifies Guard Band request bodies before handlers run |
 | Reference app | Support-ticket workflow with verification plus authorization checks |

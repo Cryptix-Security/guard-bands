@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added Ed25519 signing to the core crypto alongside HMAC-SHA256: resolver keys may be raw bytes (HMAC), Ed25519 private keys (sign + verify), or Ed25519 public keys (verification-only). The algorithm tag is derived from the key type and bound into the authenticated payload, so cross-algorithm confusion fails closed. Includes keypair helpers and `make dual-channel-keys`.
+- Gave the two-channel planes true cryptographic role separation: the data plane holds the Ed25519 private key, the control plane holds only the public key and cannot forge data-plane provenance. Keys resolve through the pluggable secret provider with **no development fallback** — both services fail closed at startup if key material is missing or malformed.
+- Added a two-channel Compose deployment (`deploy/docker-compose.dual-channel.yml`): separate services, separate ports, disjoint networks, split key delivery per container, healthchecks, restart policies, and resource limits. Compose refuses to start without keys.
+
 ## v0.5.0-poc - 2026-07-11
 
 - Added a two-channel (data-plane / control-plane) reference architecture (`dual_channel/`): untrusted content and trusted instructions travel through two separate services deployable on different ports, joined at a single cryptographic verification point. The data plane can only wrap content (no tool or instruction surface, marker smuggling rejected at ingest); the control plane admits data only when the MAC-authenticated key id, issuer, and `channel: data` context binding prove it came through the data plane, and takes instructions exclusively from its own authenticated channel. Includes `make dual-channel-demo`, invariant tests, and `docs/DUAL_CHANNEL.md`.

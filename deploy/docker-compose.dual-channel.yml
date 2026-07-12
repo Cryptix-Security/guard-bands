@@ -1,0 +1,65 @@
+# Two-channel deployment: data plane and control plane as separate services,
+# separate ports, and separate networks that never touch each other.
+#
+# Usage (from the repo root):
+#   make dual-channel-keys > .env.dual-channel     # one-time keypair
+#   docker compose -f deploy/docker-compose.dual-channel.yml \
+#     --env-file .env.dual-channel up --build
+#
+# Key distribution is the point of this file:
+#   - the data plane receives ONLY the Ed25519 private key (it signs),
+#   - the control plane receives ONLY the public key (it verifies and is
+#     cryptographically unable to forge data-plane provenance),
+#   - compose refuses to start if either key is missing (fail closed),
+#   - the planes share no network; the client/orchestrator shuttles signed
+#     blocks between them, and the signature is the only bridge of trust.
+
+services:
+  data-plane:
+    build: ..
+    command: ["uvicorn", "dual_channel.data_plane:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      DUAL_CHANNEL_SIGNING_KEY: ${DUAL_CHANNEL_SIGNING_KEY:?run 'make dual-channel-keys' and pass --env-file}
+    ports:
+      - "8001:8001"
+    networks:
+      - dual_channel_ingest
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=2).status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+  control-plane:
+    build: ..
+    command: ["uvicorn", "dual_channel.control_plane:app", "--host", "0.0.0.0", "--port", "8002"]
+    environment:
+      DUAL_CHANNEL_VERIFY_KEY: ${DUAL_CHANNEL_VERIFY_KEY:?run 'make dual-channel-keys' and pass --env-file}
+    ports:
+      - "8002:8002"
+    networks:
+      - dual_channel_control
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=2).status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+networks:
+  # Deliberately disjoint: the planes never talk to each other directly.
+  dual_channel_ingest:
+  dual_channel_control:
