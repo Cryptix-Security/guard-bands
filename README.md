@@ -446,15 +446,9 @@ Useful contributions include:
 - integrations with additional LLM frameworks
 
 ---
-
-## Contact
-
-**Monte Toren**  
-Cryptix Security 
-Https://cryptix.com
-Https://guardbands.com
-mtoren@cryptix.com  
-https://github.com/Cryptix-Security
+- **Project site:** [guardbands.com](https://guardbands.com/)
+- **Cryptix Security:** [cryptix.com](https://cryptix.com/)
+- **Contact:** [mtoren@cryptix.com](mailto:mtoren@cryptix.com)
 
 ---
 
