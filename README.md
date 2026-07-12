@@ -360,6 +360,7 @@ Key files include:
 | `docs/AUTHORIZATION.md` | Authorization pattern for sensitive tool calls |
 | `docs/ARCHITECTURE.md` | Architecture, trust boundaries, and threat model |
 | `docs/DUAL_CHANNEL.md` | Separate data/control channels with a cryptographic join point |
+| `docs/EVALUATION.md` | AgentDojo-style structural workflow evaluation and scope |
 | `docs/OWASP_LLM_COVERAGE.md` | Mapping to the OWASP Top 10 for LLM Applications (2025) |
 | `docs/API_EXAMPLES.md` | Curl examples for wrap, verify, replay checks, and chat |
 | `docs/COST_GUARD.md` | Preflight estimate, threshold confirmation, and final cost reporting |
@@ -411,6 +412,7 @@ More detail:
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/COST_GUARD.md`](docs/COST_GUARD.md)
 - [`docs/DEMO.md`](docs/DEMO.md)
+- [`docs/EVALUATION.md`](docs/EVALUATION.md)
 - [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md)
 - [`docs/LIMITS.md`](docs/LIMITS.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)

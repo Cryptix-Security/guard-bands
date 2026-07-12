@@ -1,27 +1,32 @@
-.PHONY: install-dev test demo reference-demo dual-channel-demo dual-channel-keys bench run
+.PHONY: install-dev test demo reference-demo dual-channel-demo dual-channel-keys agentdojo-style-eval bench run
+
+PYTHON ?= python3
 
 install-dev:
-	python -m pip install -r requirements-dev.txt
+	$(PYTHON) -m pip install -r requirements-dev.txt
 
 test:
-	python -m pytest
+	$(PYTHON) -m pytest
 
 demo:
-	python scripts/fastapi_demo.py
+	$(PYTHON) scripts/fastapi_demo.py
 
 reference-demo:
-	python scripts/reference_app_demo.py
+	$(PYTHON) scripts/reference_app_demo.py
 
 dual-channel-demo:
-	python scripts/dual_channel_demo.py
+	$(PYTHON) scripts/dual_channel_demo.py
+
+agentdojo-style-eval:
+	$(PYTHON) scripts/evaluate_agentdojo_style.py
 
 # Emit a fresh Ed25519 keypair in env-file form:
 #   make dual-channel-keys > .env.dual-channel
 dual-channel-keys:
-	@python -c "from app.crypto import generate_ed25519_keypair as g; priv, pub = g(); print('DUAL_CHANNEL_SIGNING_KEY=' + priv); print('DUAL_CHANNEL_VERIFY_KEY=' + pub)"
+	@$(PYTHON) -c "from app.crypto import generate_ed25519_keypair as g; priv, pub = g(); print('DUAL_CHANNEL_SIGNING_KEY=' + priv); print('DUAL_CHANNEL_VERIFY_KEY=' + pub)"
 
 bench:
-	python scripts/benchmark_parser.py
+	$(PYTHON) scripts/benchmark_parser.py
 
 run:
 	uvicorn app.main:app --reload

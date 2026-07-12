@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added an AgentDojo-style structural workflow evaluation script and documentation for reproducible local boundary tests.
+- Made Makefile Python commands configurable with `PYTHON`, defaulting to `python3`.
+
 ## v0.7.0-poc - 2026-07-12
 
 - Added a first-party Python SDK (`guardbands_sdk`) with sync clients for the main Guard Bands API and the two-channel data/control-plane APIs.
