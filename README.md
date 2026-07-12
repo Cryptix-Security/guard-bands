@@ -450,8 +450,10 @@ Useful contributions include:
 ## Contact
 
 **Monte Toren**  
-Cryptix Security  
-contact@cryptix.com  
+Cryptix Security 
+Https://cryptix.com
+Https://guardbands.com
+mtoren@cryptix.com  
 https://github.com/Cryptix-Security
 
 ---
