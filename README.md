@@ -124,6 +124,7 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 |---|---|
 | Core crypto | HMAC-SHA256 and Ed25519 signing with domain-separated algorithm tags, full marker-metadata authentication (version, key id, issuer, lifetime), context binding, authenticated issued/expiry freshness, tamper detection, and verification-only public keys for split-trust deployments |
 | API | FastAPI `/wrap`, `/verify`, and `/chat` endpoints |
+| SDK | Python SDK for the main API and two-channel data/control-plane APIs |
 | FastAPI integration | Route middleware that verifies Guard Band request bodies before handlers run |
 | Reference app | Support-ticket workflow with verification plus authorization checks |
 | Limits | Per-user rate limiting and 50 KB content limits |
@@ -352,6 +353,8 @@ Key files include:
 | `app/` | FastAPI application and core implementation |
 | `app/authorization.py` | Minimal role/action authorization example |
 | `app/crypto.py` | Guard Band wrapping and verification logic |
+| `guardbands_sdk/` | Python SDK for the main API and two-channel APIs |
+| `examples/` | SDK quickstarts and integration examples |
 | `reference_app/` | Small support-ticket reference workflow |
 | `dual_channel/` | Two-channel (data-plane / control-plane) reference architecture |
 | `docs/AUTHORIZATION.md` | Authorization pattern for sensitive tool calls |
@@ -365,6 +368,7 @@ Key files include:
 | `docs/LIMITS.md` | Parser, API, replay, and benchmark guidance |
 | `docs/KEY_MANAGEMENT.md` | Key-management expectations and production gaps |
 | `docs/PRODUCTION_DEPLOYMENT.md` | Small-company pilot deployment checklist |
+| `docs/PYTHON_SDK.md` | Python SDK install, usage, and error handling |
 | `docs/REFERENCE_APP.md` | Reference support app walkthrough |
 | `docs/CONTEXT_SERIALIZATION.md` | Canonical context serialization rules |
 | `docs/REPLAY_PROTECTION.md` | Replay-protection patterns and examples |
@@ -411,6 +415,7 @@ More detail:
 - [`docs/LIMITS.md`](docs/LIMITS.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
 - [`docs/PRODUCTION_DEPLOYMENT.md`](docs/PRODUCTION_DEPLOYMENT.md)
+- [`docs/PYTHON_SDK.md`](docs/PYTHON_SDK.md)
 - [`docs/REFERENCE_APP.md`](docs/REFERENCE_APP.md)
 - [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
 - [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)

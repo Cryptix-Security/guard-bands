@@ -1,6 +1,10 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "guard-bands"
-version = "0.6.0"
+version = "0.7.0"
 description = "Cryptographic boundaries for separating untrusted LLM content from trusted instructions and tool execution."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -30,6 +34,21 @@ vault = [
 dev = [
   "pytest==9.1.1",
   "hypothesis==6.156.6",
+]
+
+[project.urls]
+Homepage = "https://guardbands.com/"
+Repository = "https://github.com/Cryptix-Security/guard-bands"
+Issues = "https://github.com/Cryptix-Security/guard-bands/issues"
+Releases = "https://github.com/Cryptix-Security/guard-bands/releases"
+
+[tool.setuptools.packages.find]
+include = [
+  "app*",
+  "dual_channel*",
+  "guardbands_sdk*",
+  "integrations*",
+  "reference_app*",
 ]
 
 [tool.pytest.ini_options]

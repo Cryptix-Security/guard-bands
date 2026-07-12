@@ -28,6 +28,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
 # Local durable replay ledgers
 data/
 *.sqlite3

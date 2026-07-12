@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0-poc - 2026-07-12
+
+- Added a first-party Python SDK (`guardbands_sdk`) with sync clients for the main Guard Bands API and the two-channel data/control-plane APIs.
+- Added typed SDK response models and domain exceptions for verification failures, authorization failures, rate limits, and cost-threshold prompts.
+- Added SDK docs, quickstart examples, package build metadata, and SDK test coverage.
+
 ## v0.6.0-poc - 2026-07-11
 
 - Added Ed25519 signing to the core crypto alongside HMAC-SHA256: resolver keys may be raw bytes (HMAC), Ed25519 private keys (sign + verify), or Ed25519 public keys (verification-only). The algorithm tag is derived from the key type and bound into the authenticated payload, so cross-algorithm confusion fails closed. Includes keypair helpers and `make dual-channel-keys`.
