@@ -98,6 +98,45 @@ Invalid or missing signatures mean the content should not be trusted as inert da
 
 ---
 
+## Dual-Channel Architecture
+
+The wrap/verify mechanism above works within a single service. For deployments that want a stronger split, this repository also includes a **dual-channel reference architecture**: untrusted data ingestion and trusted instruction/execution run as two independent services, connected only by a Guard Band signature.
+
+```text
+untrusted content                     trusted operators / instructions
+      |                                          |
+      v                                          v
++------------------+                  +----------------------+
+|   DATA PLANE     |                  |    CONTROL PLANE     |
+|   port 8001      |                  |    port 8002         |
+|                  |                  |                      |
+| /ingest only     |                  | /execute             |
+| no tools         |                  | tool registry        |
+| no instructions  |                  | authorization        |
+| no model access  |                  | verification gate    |
++------------------+                  +----------------------+
+      |                                          |
+      |  signed inert blocks                     |
+      |  (kid + issuer + channel                 |
+      |   authenticated by the MAC)              |
+      +--------------------+---------------------+
+                           v
+                 one cryptographic join point:
+                 instructions + verified inert data -> model / tools
+```
+
+Process isolation alone doesn't separate cryptographic roles — with a shared HMAC secret, anything that can verify a band can also forge one. The planes therefore sign with **Ed25519** instead: the data plane holds the private signing key, the control plane holds only the public verification key, and it is cryptographically unable to mint bands. A fully compromised control plane still cannot fabricate data-plane provenance, and instructions never come from content — action selection happens exclusively in the control plane's authenticated request.
+
+Try it without an LLM key:
+
+```bash
+make dual-channel-demo
+```
+
+See [`docs/DUAL_CHANNEL.md`](./docs/DUAL_CHANNEL.md) for the full topology, Docker Compose deployment with split key delivery, and enforced invariants — including what this design does and does not prove.
+
+---
+
 ## Threat Model
 
 Guard Bands are designed to protect the boundary between **untrusted content** and **trusted instruction or tool-execution paths**.
@@ -124,7 +163,7 @@ In short: Guard Bands provide a cryptographic control plane for separating data 
 |---|---|
 | Core crypto | HMAC-SHA256 and Ed25519 signing with domain-separated algorithm tags, full marker-metadata authentication (version, key id, issuer, lifetime), context binding, authenticated issued/expiry freshness, tamper detection, and verification-only public keys for split-trust deployments |
 | API | FastAPI `/wrap`, `/verify`, and `/chat` endpoints |
-| SDK | Python SDK for the main API and two-channel data/control-plane APIs |
+| SDK | Python SDK for the main API and dual-channel data/control-plane APIs |
 | FastAPI integration | Route middleware that verifies Guard Band request bodies before handlers run |
 | Reference app | Support-ticket workflow with verification plus authorization checks |
 | Limits | Per-user rate limiting and 50 KB content limits |
@@ -356,7 +395,7 @@ Key files include:
 | `guardbands_sdk/` | Python SDK for the main API and two-channel APIs |
 | `examples/` | SDK quickstarts and integration examples |
 | `reference_app/` | Small support-ticket reference workflow |
-| `dual_channel/` | Two-channel (data-plane / control-plane) reference architecture |
+| `dual_channel/` | Dual-channel (data-plane / control-plane) reference architecture |
 | `docs/AUTHORIZATION.md` | Authorization pattern for sensitive tool calls |
 | `docs/ARCHITECTURE.md` | Architecture, trust boundaries, and threat model |
 | `docs/DUAL_CHANNEL.md` | Separate data/control channels with a cryptographic join point |
