@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added a real AgentDojo benchmark harness (`integrations/agentdojo/`, `scripts/run_agentdojo_benchmark.py`, `bench` extra): runs Guard Bands as a defense pipeline (cryptographic spotlighting plus an optional provenance gate) against tool-calling agents, with a free scripted-stub validation path, a cost estimate and confirmation before any live run, and unit tests for the defense mechanisms. Documented findings in `docs/AGENTDOJO_RESULTS.md` — including the honest result that current Anthropic models resist the suite's classic injection attacks at 0% baseline, so the value here is provenance and utility preservation rather than attack-rate reduction.
 - Added an AgentDojo-style structural workflow evaluation script and documentation for reproducible local boundary tests.
 - Made Makefile Python commands configurable with `PYTHON`, defaulting to `python3`.
 - Documentation consistency pass: fixed the FastAPI app version (0.6.0 → 0.7.0), refreshed the research paper to the current feature set and made its release references version-agnostic, added `docs/SECRETS.md` to the README docs table, updated the README/QUICKSTART validation lists to the full current suite, and added Python SDK and two-channel deployment sections to QUICKSTART.

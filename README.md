@@ -421,6 +421,7 @@ Key files include:
 | `docs/CONTEXT_SERIALIZATION.md` | Canonical context serialization rules |
 | `docs/REPLAY_PROTECTION.md` | Replay-protection patterns and examples |
 | `docs/SECRETS.md` | Pluggable secret backends: env, AWS Secrets Manager, Vault |
+| `docs/AGENTDOJO_RESULTS.md` | Running Guard Bands as a defense in the AgentDojo benchmark, and results |
 | `docker-compose.yml` | Local multi-service deployment |
 | `requirements.txt` | Python dependencies |
 | `requirements-dev.txt` | Test/development dependencies |
