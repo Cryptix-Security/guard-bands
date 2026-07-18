@@ -267,14 +267,22 @@ The proof of concept includes security tests for the core boundary mechanism.
 The included tests exercise:
 
 ```text
-✓ cryptographic signature verification
+✓ cryptographic signature verification (HMAC-SHA256 and Ed25519)
+✓ marker-metadata tampering rejection (key id, issuer, expiry)
+✓ cross-algorithm confusion and verification-only-key enforcement
 ✓ context binding enforcement
 ✓ content tampering detection
 ✓ forged marker rejection
 ✓ unwrapped content rejection
+✓ property-based fuzzing of the marker parser
 ✓ malformed marker extraction hardening
+✓ replay ledger behavior (in-memory and SQLite)
 ✓ unsupported tool-call rejection
 ✓ FastAPI middleware enforcement
+✓ two-channel invariants: forged issuer, wrong channel, fail-closed startup
+✓ secret-provider resolution (env, AWS, Vault)
+✓ per-user cost logging on the chat path
+✓ Python SDK client behavior
 ✓ normal wrapped-content verification
 ```
 
@@ -412,6 +420,7 @@ Key files include:
 | `docs/REFERENCE_APP.md` | Reference support app walkthrough |
 | `docs/CONTEXT_SERIALIZATION.md` | Canonical context serialization rules |
 | `docs/REPLAY_PROTECTION.md` | Replay-protection patterns and examples |
+| `docs/SECRETS.md` | Pluggable secret backends: env, AWS Secrets Manager, Vault |
 | `docker-compose.yml` | Local multi-service deployment |
 | `requirements.txt` | Python dependencies |
 | `requirements-dev.txt` | Test/development dependencies |

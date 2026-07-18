@@ -13,7 +13,7 @@ PSK-HMAC Guard Bands are a cryptographic defense-in-depth pattern for creating e
 
 Guard Bands do not make an LLM intrinsically safe, truthful, or policy-compliant. Their purpose is narrower and more concrete: make untrusted content inert by default, require explicit verification before trusted handling, and give the application a cryptographic signal it can enforce outside the model.
 
-The current repository contains a working proof of concept, released as `v0.4.0-poc`, with FastAPI endpoints; HMAC-based wrapping and verification that authenticates the full marker metadata (protocol version, key id, issuer, and issued/expiry timestamps); authenticated expiry for fail-closed freshness; a persistent replay ledger; canonical context serialization; app-side fail-closed tool-call enforcement; a pluggable secret provider (environment, AWS Secrets Manager, or HashiCorp Vault); preflight LLM cost controls; SSO, structured audit logging, and a hardened production deployment overlay; pytest coverage; GitHub Actions CI; CodeQL and secret scanning; pinned dependencies; Dependabot maintenance; and operational documentation.
+The repository contains a working proof of concept, published as tagged releases (see the repository CHANGELOG for the current version), with FastAPI endpoints; HMAC-SHA256 and Ed25519 wrapping and verification that authenticates the full marker metadata (protocol version, key id, issuer, and issued/expiry timestamps); authenticated expiry for fail-closed freshness; a persistent replay ledger; canonical context serialization; app-side fail-closed tool-call enforcement; a two-channel data-plane/control-plane reference architecture with true cryptographic role separation (the verifying service holds only a public key and cannot forge bands); a pluggable secret provider (environment, AWS Secrets Manager, or HashiCorp Vault); preflight LLM cost controls; a Python SDK; SSO, structured audit logging, and hardened production deployment overlays; pytest coverage; GitHub Actions CI; CodeQL and secret scanning; pinned dependencies; Dependabot maintenance; and operational documentation.
 
 ## The Core Problem: Single-Channel Vulnerability
 
@@ -128,15 +128,18 @@ The model may read or summarize the verified content, but the surrounding applic
 
 ## Current POC Implementation
 
-The `v0.4.0-poc` implementation includes:
+The current implementation includes:
 
-- HMAC-SHA256 Guard Band signing and verification with a domain-separated algorithm tag
-- full marker-metadata authentication (protocol version, key id, issuer, and issued/expiry timestamps bound into the MAC)
+- HMAC-SHA256 and Ed25519 Guard Band signing and verification with domain-separated algorithm tags
+- verification-only Ed25519 public keys, so split-trust deployments can verify bands without being able to forge them
+- full marker-metadata authentication (protocol version, key id, issuer, and issued/expiry timestamps bound into the signature)
 - authenticated expiry for fail-closed freshness, independent of any external store
 - canonical context serialization
-- nonce authentication in the MAC payload
+- nonce authentication in the signed payload
 - a persistent replay ledger (in-memory or SQLite) for same-context single-use enforcement
+- a two-channel data-plane/control-plane reference architecture: separate services on separate ports and networks, joined only by the Guard Band signature, with no development fallback keys
 - FastAPI `/wrap`, `/verify`, and `/chat` endpoints, plus request-body verification middleware
+- a Python SDK for the main API and the two-channel APIs
 - a reference support-ticket workflow with explicit authorization checks
 - 50 KB request content limits
 - per-user or per-IP rate limiting
@@ -145,12 +148,12 @@ The `v0.4.0-poc` implementation includes:
 - structured audit logging to stdout, with optional PostgreSQL and Splunk HEC sinks
 - SSO-aware identity propagation through oauth2-proxy and Keycloak
 - app-side fail-closed enforcement for guard-banded chat content
-- a hardened production deployment overlay (TLS termination, non-root image, resource limits)
-- pytest coverage for crypto, API behavior, replay checks, tool-call enforcement, secrets, and cost logging
+- hardened production deployment overlays (TLS termination, non-root image, resource limits, split key delivery)
+- pytest coverage for crypto, API behavior, replay checks, tool-call enforcement, secrets, cost logging, and the two-channel invariants
 - GitHub Actions CI for Python 3.11 and 3.12
 - CodeQL code scanning and GitHub secret scanning
 - pinned dependencies with Dependabot configured for pip and GitHub Actions
-- a `v0.4.0-poc` GitHub release
+- tagged GitHub releases with per-release notes
 
 The implementation is intentionally a proof of concept. It demonstrates the boundary pattern and enforcement hooks, not a complete production security system.
 
@@ -328,6 +331,9 @@ The tests cover:
 - malformed Guard Band marker handling
 - secret-provider resolution (environment, AWS, Vault)
 - per-user actual-cost logging on the chat path
+- Ed25519 round trips, cross-algorithm confusion, and the verification-only-key cannot-sign property
+- two-channel invariants: forged issuer, wrong channel binding, cross-tenant rejection, and fail-closed startup without key material
+- SDK client behavior against the API surfaces
 
 CI runs the suite on Python 3.11 and 3.12.
 

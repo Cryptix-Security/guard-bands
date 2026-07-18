@@ -147,19 +147,26 @@ make test
 ```
 
 **What it tests:**
-- ✅ Valid content verification
+- ✅ Valid content verification (HMAC-SHA256 and Ed25519)
 - ✅ Context tampering protection
 - ✅ Content modification detection
 - ✅ Forged guard band rejection
 - ✅ Unwrapped content handling
 - ✅ Canonical context serialization
 - ✅ Nonce tampering protection
+- ✅ Marker-metadata tampering (key id, issuer, expiry)
+- ✅ Cross-algorithm confusion and verification-only keys
+- ✅ Property-based fuzzing of the marker parser
 - ✅ API wrap/verify flows
 - ✅ LLM tool-call enforcement
 - ✅ FastAPI middleware enforcement
 - ✅ malformed marker extraction hardening
 - ✅ persistent SQLite replay ledger
 - ✅ reference app authorization flow
+- ✅ two-channel invariants (forged issuer, wrong channel, fail-closed startup)
+- ✅ secret-provider resolution (env, AWS, Vault)
+- ✅ chat cost guardrails and per-user cost logging
+- ✅ Python SDK clients
 
 ### Run the FastAPI Demo
 
@@ -184,6 +191,34 @@ This demo runs untrusted data and trusted instructions through two separate serv
 ```bash
 make dual-channel-demo
 ```
+
+To deploy the two planes as separate containers on disjoint networks with split
+Ed25519 key delivery (the data plane signs, the control plane can only verify):
+
+```bash
+make dual-channel-keys > .env.dual-channel
+docker compose -f deploy/docker-compose.dual-channel.yml \
+  --env-file .env.dual-channel up --build
+```
+
+### Use the Python SDK
+
+A thin client for the HTTP APIs (the server remains the security boundary):
+
+```bash
+python -m pip install -e .
+```
+
+```python
+from guardbands_sdk import GuardBandsClient
+
+with GuardBandsClient("http://localhost:8000") as guardbands:
+    wrapped = guardbands.wrap("untrusted document text", context={"request_id": "req-001"})
+    verified = guardbands.verify(wrapped.wrapped_content, context={"request_id": "req-001"})
+```
+
+See [`docs/PYTHON_SDK.md`](docs/PYTHON_SDK.md) for the chat/cost flow, the
+two-channel clients, bearer-token auth, and error handling.
 
 ### Run Parser Benchmarks
 
