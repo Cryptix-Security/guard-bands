@@ -1,4 +1,4 @@
-.PHONY: install-dev test demo reference-demo dual-channel-demo dual-channel-keys agentdojo-style-eval bench run
+.PHONY: install-dev test demo reference-demo dual-channel-demo dual-channel-keys agentdojo-style-eval redteam-control-plane bench run
 
 PYTHON ?= python3
 
@@ -19,6 +19,9 @@ dual-channel-demo:
 
 agentdojo-style-eval:
 	$(PYTHON) scripts/evaluate_agentdojo_style.py
+
+redteam-control-plane:
+	$(PYTHON) scripts/redteam_control_plane.py
 
 # Emit a fresh Ed25519 keypair in env-file form:
 #   make dual-channel-keys > .env.dual-channel

@@ -80,6 +80,31 @@ still converge trusted instructions and verified data into one token stream.
 The goal is to enforce provenance and authority boundaries in the application
 around that hop.
 
+## Adversarial Red-Team of the Control Plane
+
+The two-channel control plane is a signature verifier plus an authorization
+gate — not an LLM endpoint — so the meaningful red-team is not a natural-language
+jailbreak (those are simply invalid bands) but an attack on the enforcement
+surface itself:
+
+```bash
+make redteam-control-plane
+```
+
+`scripts/redteam_control_plane.py` runs a battery of bypass attempts against the
+live FastAPI apps (no API key, no network): hand-forged markers, tampered body
+and metadata, valid signatures from the wrong keypair, HMAC-vs-Ed25519 algorithm
+confusion, foreign issuer, wrong-channel and cross-tenant bands, context-object
+swaps, expired bands, homoglyph markers, oversized content, malformed context
+types, nested-marker smuggling, and authorization bypass (viewer refund,
+operator refund without a verified document, unknown actions).
+
+A case fails only if the attacker obtains a verified-and-authorized result they
+should not have. At the current revision all cases are defended (0 bypasses),
+and the script exits non-zero if any bypass is found, so it doubles as a
+regression guard. Its core cases are also covered as unit tests in
+`tests/test_dual_channel.py`.
+
 ## Future Evaluation Work
 
 Useful next steps:
