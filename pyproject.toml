@@ -12,7 +12,7 @@ license = "MIT"
 dependencies = [
   "anthropic==0.116.0",
   "asyncpg==0.31.0",
-  "cryptography==49.0.0",
+  "cryptography==50.0.0",
   "fastapi==0.139.0",
   "httpx==0.28.1",
   "pydantic==2.13.4",
