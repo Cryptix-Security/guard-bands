@@ -2,6 +2,28 @@
 
 Guard Bands separates untrusted content from trusted instructions by giving the application a cryptographic boundary it can verify before sensitive behavior is allowed.
 
+This document is the concise implementation-oriented architecture. See
+[`RESEARCH.md`](RESEARCH.md) for the longer design rationale, security claims,
+assumptions, and research status.
+
+## Repository Boundary
+
+This repository is the canonical implementation and specification home for the
+Guard Bands mechanism:
+
+- signing and verification primitives
+- canonical serialization and marker parsing
+- replay primitives
+- FastAPI middleware
+- MCP `tools/call` integration
+
+The separate
+[`guard-bands-reference`](https://github.com/Cryptix-Security/guard-bands-reference)
+repository consumes this library as a versioned dependency. It owns deployment
+examples, LLM workflows, SSO, audit sinks, dual-channel services, and other
+operational demonstrations. Core library code is not copied into that
+repository.
+
 ## Trust Boundaries
 
 | Boundary | Trusted side | Untrusted side |
