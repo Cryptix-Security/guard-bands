@@ -9,6 +9,7 @@ Guard Bands separates untrusted content from trusted instructions by giving the 
 | Wrapping | application signer and key resolver | uploaded files, retrieved documents, tickets, web pages, emails |
 | Verification | application verifier and expected context | model-generated tool inputs and user-controlled prompt text |
 | Tool execution | application policy and authorization checks | any text inside model context, including verified document text |
+| MCP tool calls | configured client/server keys and authenticated application context | model-selected arguments and tool-produced content |
 | Audit | server-side event logger | user, model, and document content |
 
 The model is not the root of trust. It can request verification, but the application chooses the verification context and decides whether a tool path is allowed.
@@ -68,6 +69,25 @@ async def tool_input(payload: dict, request: Request):
 ```
 
 This middleware is useful when a route should never process unverified tool input. It verifies before the route handler runs and attaches the verification result to `request.state.guard_band_verification`.
+
+## MCP Integration
+
+The optional `guardbands.integrations.mcp` adapter protects MCP `tools/call`
+without depending on the underlying stdio or Streamable HTTP transport.
+
+1. The guarded client signs the complete canonical tool-arguments object in a
+   detached envelope carried under `com.guardbands/guard-band` in MCP `_meta`.
+2. The server extension reconstructs the expected context and verifies the
+   envelope before invoking the tool handler.
+3. The extension wraps each text result block in visible Guard Band markers,
+   signs the complete `CallToolResult`, and attaches a detached result envelope.
+4. The guarded client verifies the result envelope and every visible text band
+   before returning the result to the host.
+
+The authenticated MCP context binds the direction, configured audience, tool
+name, logical call id, application context, and a digest of the exact input.
+It deliberately excludes the transport's JSON-RPC request id because MCP
+multi-round-trip retries assign a new id.
 
 ## Threats Addressed
 

@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 
 
 SUPPORTED_PROTOCOL_VERSION = "1"
+STRUCTURED_VALUE_KIND = "json"
 # Domain-separation / algorithm tags bound into every signature. The tag is
 # derived from the resolved key's type and authenticated inside the payload,
 # so a band signed under one algorithm can never verify under another
@@ -117,6 +118,7 @@ def canonical_mac_payload(
     issued_at: int,
     expires_at: int,
     alg: str = MAC_ALG,
+    kind: str = "text",
 ) -> bytes:
     """Serialize the exact payload authenticated by the Guard Band signature.
 
@@ -124,7 +126,7 @@ def canonical_mac_payload(
     key id, issuer, and the issued/expiry timestamps — is bound here so none of
     them can be tampered with or downgraded without invalidating the signature.
     """
-    return canonical_json({
+    payload = {
         "alg": alg,
         "content": content,
         "context": context or {},
@@ -134,7 +136,13 @@ def canonical_mac_payload(
         "kid": key_id,
         "nonce": nonce,
         "v": version,
-    }).encode("utf-8")
+    }
+    # Preserve the v1 text payload byte-for-byte while giving detached JSON
+    # values an authenticated domain tag. A signature minted for one form can
+    # therefore never be transplanted into the other.
+    if kind != "text":
+        payload["kind"] = kind
+    return canonical_json(payload).encode("utf-8")
 
 
 def _encode_issuer(issuer: str) -> str:
@@ -314,6 +322,7 @@ class GuardBandCrypto:
         issuer: str,
         issued_at: int,
         expires_at: int,
+        kind: str = "text",
     ) -> str:
         """Sign content + context + all authenticated metadata.
 
@@ -325,7 +334,7 @@ class GuardBandCrypto:
         message = canonical_mac_payload(
             content, context, nonce,
             version=version, key_id=key_id, issuer=issuer,
-            issued_at=issued_at, expires_at=expires_at, alg=alg,
+            issued_at=issued_at, expires_at=expires_at, alg=alg, kind=kind,
         )
         if isinstance(secret_key, Ed25519PublicKey):
             raise ValueError("Ed25519 public key is verification-only and cannot sign")
@@ -348,6 +357,7 @@ class GuardBandCrypto:
         issuer: str,
         issued_at: int,
         expires_at: int,
+        kind: str = "text",
     ) -> bool:
         """Verify the signature over the recomputed authenticated payload."""
         alg = key_algorithm(secret_key)
@@ -355,7 +365,7 @@ class GuardBandCrypto:
             message = canonical_mac_payload(
                 content, context, nonce,
                 version=version, key_id=key_id, issuer=issuer,
-                issued_at=issued_at, expires_at=expires_at, alg=alg,
+                issued_at=issued_at, expires_at=expires_at, alg=alg, kind=kind,
             )
             public_key = (
                 secret_key.public_key()
@@ -371,9 +381,158 @@ class GuardBandCrypto:
         expected_mac = self.generate_mac(
             content, context, nonce, secret_key,
             version=version, key_id=key_id, issuer=issuer,
-            issued_at=issued_at, expires_at=expires_at,
+            issued_at=issued_at, expires_at=expires_at, kind=kind,
         )
         return hmac.compare_digest(expected_mac, provided_mac)
+
+    def sign_value(
+        self,
+        value: Any,
+        context: dict,
+        key_id: str | None = None,
+        issuer: str | None = None,
+        ttl_seconds: int | None = None,
+        now: float | None = None,
+    ) -> dict:
+        """Sign a JSON-compatible value and return a detached envelope.
+
+        Detached envelopes are intended for structured protocols such as MCP,
+        where changing the application's JSON value would violate its schema.
+        The value itself is not included in the envelope.
+        """
+        value_json = canonical_json(value)
+        issuer = issuer or DEFAULT_ISSUER
+        if len(issuer.encode("utf-8")) > 256:
+            raise ValueError("Issuer must be at most 256 bytes")
+
+        ttl = DEFAULT_TTL_SECONDS if ttl_seconds is None else ttl_seconds
+        if ttl < 0:
+            raise ValueError("ttl_seconds must not be negative")
+
+        nonce = self.generate_nonce()
+        signing_key_id, signing_key = self.key_resolver.get_signing_key(key_id)
+        issued_at = int(time.time() if now is None else now)
+        expires_at = issued_at + ttl
+        algorithm = key_algorithm(signing_key)
+        signature = self.generate_mac(
+            value_json,
+            context,
+            nonce,
+            signing_key,
+            version=SUPPORTED_PROTOCOL_VERSION,
+            key_id=signing_key_id,
+            issuer=issuer,
+            issued_at=issued_at,
+            expires_at=expires_at,
+            kind=STRUCTURED_VALUE_KIND,
+        )
+        return {
+            "version": SUPPORTED_PROTOCOL_VERSION,
+            "nonce": nonce,
+            "issued_at": issued_at,
+            "expires_at": expires_at,
+            "key_id": signing_key_id,
+            "issuer": issuer,
+            "algorithm": algorithm,
+            "signature": signature,
+        }
+
+    def verify_value(
+        self,
+        value: Any,
+        envelope: dict,
+        context: dict,
+        now: float | None = None,
+    ) -> dict:
+        """Verify a detached envelope for a JSON-compatible value."""
+        try:
+            expected_fields = {
+                "version",
+                "nonce",
+                "issued_at",
+                "expires_at",
+                "key_id",
+                "issuer",
+                "algorithm",
+                "signature",
+            }
+            if not isinstance(envelope, dict) or set(envelope) != expected_fields:
+                return {"valid": False, "error": "Invalid detached envelope fields"}
+
+            version = envelope["version"]
+            nonce = envelope["nonce"]
+            issued_at = envelope["issued_at"]
+            expires_at = envelope["expires_at"]
+            key_id = envelope["key_id"]
+            issuer = envelope["issuer"]
+            algorithm = envelope["algorithm"]
+            signature = envelope["signature"]
+
+            if version != SUPPORTED_PROTOCOL_VERSION:
+                return {"valid": False, "error": f"Unsupported guard band version: {version}"}
+            if not isinstance(nonce, str) or not NONCE_PATTERN.fullmatch(nonce):
+                return {"valid": False, "error": "Invalid nonce format"}
+            if type(issued_at) is not int or type(expires_at) is not int:
+                return {"valid": False, "error": "Invalid timestamp format"}
+            if issued_at < 0 or expires_at < issued_at:
+                return {"valid": False, "error": "Invalid timestamp range"}
+            if not isinstance(key_id, str) or not KEY_ID_PATTERN.fullmatch(key_id):
+                return {"valid": False, "error": "Invalid key id format"}
+            if not isinstance(issuer, str) or len(issuer.encode("utf-8")) > 256:
+                return {"valid": False, "error": "Invalid issuer format"}
+            if not isinstance(signature, str):
+                return {"valid": False, "error": "Invalid signature format"}
+
+            verification_key = self.key_resolver.get_verification_key(key_id)
+            if verification_key is None:
+                return {"valid": False, "error": f"Unknown key id: {key_id}"}
+            expected_algorithm = key_algorithm(verification_key)
+            if algorithm != expected_algorithm:
+                return {"valid": False, "error": "Signature algorithm mismatch"}
+            signature_error = _decode_base64_field(
+                signature, _SIGNATURE_LENGTHS[expected_algorithm], "signature"
+            )
+            if signature_error:
+                return {"valid": False, "error": signature_error}
+
+            value_json = canonical_json(value)
+            if not self.verify_mac(
+                value_json,
+                context,
+                nonce,
+                signature,
+                verification_key,
+                version=version,
+                key_id=key_id,
+                issuer=issuer,
+                issued_at=issued_at,
+                expires_at=expires_at,
+                kind=STRUCTURED_VALUE_KIND,
+            ):
+                return {"valid": False, "error": "Signature verification failed"}
+
+            current_time = int(time.time() if now is None else now)
+            if current_time > expires_at:
+                return {
+                    "valid": False,
+                    "error": "Guard band expired",
+                    "nonce": nonce,
+                    "key_id": key_id,
+                }
+
+            return {
+                "valid": True,
+                "value": value,
+                "nonce": nonce,
+                "key_id": key_id,
+                "version": version,
+                "issuer": issuer,
+                "issued_at": issued_at,
+                "expires_at": expires_at,
+                "algorithm": algorithm,
+            }
+        except (TypeError, ValueError, RecursionError) as exc:
+            return {"valid": False, "error": f"Value verification error: {exc}"}
 
     def wrap_with_metadata(
         self,

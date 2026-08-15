@@ -12,8 +12,8 @@ that the content and its context, issuer, key id, protocol version, and lifetime
 have not changed since a trusted signer created the band.
 
 This repository contains only the reusable boundary library and its optional
-FastAPI middleware. The API service, dual-channel demonstration, SSO, audit
-sinks, LLM integrations, and deployment assets live in
+FastAPI and MCP integrations. The API service, dual-channel demonstration, SSO,
+audit sinks, LLM integrations, and deployment assets live in
 [`Cryptix-Security/guard-bands-reference`](https://github.com/Cryptix-Security/guard-bands-reference).
 
 ## Install
@@ -28,10 +28,16 @@ For the FastAPI integration:
 python -m pip install 'guard-bands[fastapi]'
 ```
 
-Until version `0.8.0` is published, install directly from the repository:
+For the MCP integration:
 
 ```bash
-python -m pip install 'guard-bands[fastapi] @ git+https://github.com/Cryptix-Security/guard-bands.git'
+python -m pip install 'guard-bands[mcp]'
+```
+
+Until version `0.9.0` is published, install directly from the repository:
+
+```bash
+python -m pip install 'guard-bands[fastapi,mcp] @ git+https://github.com/Cryptix-Security/guard-bands.git@v0.9.0'
 ```
 
 ## Wrap and verify
@@ -95,6 +101,58 @@ runs, rejects malformed or oversized bodies, and stores the verification
 result on `request.state`. Replay protection is opt-in and explicitly injected
 with the `replay_ledger` argument.
 
+## MCP tools
+
+The optional MCP 2.x integration signs complete tool arguments and results in
+MCP `_meta`, verifies guarded inputs before the tool handler runs, and wraps
+textual outputs in visible inert markers before they return to the model.
+
+```python
+from mcp import Client
+from mcp.server.mcpserver import MCPServer
+
+from guardbands import GuardBandCrypto
+from guardbands.integrations.mcp import (
+    GuardBandMCPClient,
+    GuardBandMCPServerExtension,
+    MCPToolPolicy,
+    guard_bands_client_capability,
+)
+
+crypto = GuardBandCrypto(b"replace-with-a-secret-from-your-key-manager")
+policy = MCPToolPolicy(guard_inputs=True, guard_outputs=True)
+extension = GuardBandMCPServerExtension(
+    crypto,
+    audience="support-tools",
+    policies={"search_tickets": policy},
+)
+mcp = MCPServer("support-tools", extensions=[extension])
+
+
+@mcp.tool()
+def search_tickets(query: str) -> dict[str, list[str]]:
+    return {"matches": [query]}
+
+
+async def call_tool():
+    async with Client(
+        mcp,
+        extensions=[guard_bands_client_capability()],
+    ) as raw_client:
+        client = GuardBandMCPClient(
+            raw_client,
+            crypto,
+            audience="support-tools",
+            policies={"search_tickets": policy},
+        )
+        return await client.call_tool("search_tickets", {"query": "refund"})
+```
+
+For production, use separate Ed25519 signing keys in each direction and derive
+server verification context from authenticated application state. See
+[`docs/MCP.md`](docs/MCP.md) for policies, context binding, limits, and the
+current `tools/call` scope.
+
 ## Security boundary
 
 Guard Bands proves integrity, provenance, freshness, and context binding. It
@@ -110,6 +168,7 @@ See:
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
 - [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)
 - [`docs/LIMITS.md`](docs/LIMITS.md)
+- [`docs/MCP.md`](docs/MCP.md)
 
 ## Development
 
