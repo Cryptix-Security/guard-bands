@@ -16,6 +16,28 @@ FastAPI and MCP integrations. The API service, dual-channel demonstration, SSO,
 audit sinks, LLM integrations, and deployment assets live in
 [`Cryptix-Security/guard-bands-reference`](https://github.com/Cryptix-Security/guard-bands-reference).
 
+## How it works
+
+```text
+untrusted source                 trusted application boundary
+      |                                      |
+      v                                      v
+trusted signer -- signed inert data --> verifier -- policy --> model / tool
+      ^                                      |
+      |                                      v
+ signing key                         authorization still required
+```
+
+The signer authenticates the exact content, its lifetime, provenance, and the
+application context in which it may be used. The verifier reconstructs that
+context from trusted application state and fails closed if any authenticated
+value has changed. Verification establishes a data boundary; it does not grant
+authority or replace normal authorization.
+
+For the design rationale, security claims, threat model, and research status,
+read [`docs/RESEARCH.md`](docs/RESEARCH.md). For a concise implementation view,
+see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Install
 
 ```bash
@@ -163,6 +185,7 @@ and human approval where appropriate.
 
 See:
 
+- [`docs/RESEARCH.md`](docs/RESEARCH.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
