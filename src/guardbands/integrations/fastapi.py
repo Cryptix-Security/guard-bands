@@ -7,9 +7,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.crypto import GuardBandCrypto
-from app.models import CONTENT_MAX_BYTES
-from app.replay import apply_replay_protection
+from ..crypto import GuardBandCrypto
+from ..replay import ReplayLedger, apply_replay_protection
+
+
+DEFAULT_MAX_BODY_BYTES = 50_000
 
 
 class GuardBandVerificationMiddleware:
@@ -23,8 +25,8 @@ class GuardBandVerificationMiddleware:
         methods: Iterable[str] = ("POST", "PUT", "PATCH"),
         wrapped_content_field: str = "wrapped_content",
         context_field: str = "context",
-        replay_protection: bool = False,
-        max_body_bytes: int = CONTENT_MAX_BYTES,
+        replay_ledger: ReplayLedger | None = None,
+        max_body_bytes: int = DEFAULT_MAX_BODY_BYTES,
     ) -> None:
         self.app = app
         self.crypto = crypto
@@ -32,7 +34,7 @@ class GuardBandVerificationMiddleware:
         self.methods = {method.upper() for method in methods}
         self.wrapped_content_field = wrapped_content_field
         self.context_field = context_field
-        self.replay_protection = replay_protection
+        self.replay_ledger = replay_ledger
         self.max_body_bytes = max_body_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -60,8 +62,7 @@ class GuardBandVerificationMiddleware:
             return
 
         result = self.crypto.extract_and_verify(wrapped_content, context)
-        if self.replay_protection:
-            result = apply_replay_protection(result, context)
+        result = apply_replay_protection(result, context, self.replay_ledger)
         if not result.get("valid"):
             await self._reject(scope, send, f"Guard Band verification failed: {result.get('error')}")
             return

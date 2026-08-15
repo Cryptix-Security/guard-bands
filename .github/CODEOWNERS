@@ -3,10 +3,8 @@
 #
 # * @Cryptix-Security/owners
 # /.github/ @Cryptix-Security/owners
-# /app/crypto.py @Cryptix-Security/owners
-# /app/llm.py @Cryptix-Security/owners
-# /app/replay.py @Cryptix-Security/owners
-# /app/middleware/ @Cryptix-Security/owners
+# /src/guardbands/crypto.py @Cryptix-Security/owners
+# /src/guardbands/replay.py @Cryptix-Security/owners
+# /src/guardbands/integrations/ @Cryptix-Security/owners
 # /requirements*.txt @Cryptix-Security/owners
 # /pyproject.toml @Cryptix-Security/owners
-# /docker-compose.yml @Cryptix-Security/owners

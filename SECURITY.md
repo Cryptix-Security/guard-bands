@@ -1,6 +1,7 @@
 # Security Policy
 
-Guard Bands is a proof-of-concept security project. Please report suspected vulnerabilities privately before opening public issues.
+Guard Bands is an experimental security library. Please report suspected
+vulnerabilities privately before opening public issues.
 
 ## Reporting a Vulnerability
 
@@ -20,9 +21,8 @@ In scope:
 
 - Guard Band wrapping and verification bypasses
 - context-binding or replay-protection weaknesses
-- tool-call enforcement bypasses
-- key-management or audit-log security issues
-- dependency or deployment vulnerabilities in the POC
+- FastAPI middleware enforcement bypasses
+- key resolver or replay-ledger weaknesses in the library
 
 Out of scope:
 
@@ -33,5 +33,4 @@ Out of scope:
 
 ## Supported Versions
 
-Only the default branch and the latest tagged POC release are actively maintained.
-
+Only the default branch and the latest tagged release are actively maintained.

@@ -6,7 +6,7 @@ This POC intentionally keeps limits conservative. They are designed to make the 
 
 | Area | Current behavior |
 |---|---|
-| Content size | API request models and FastAPI integration middleware default to 50 KB |
+| Content size | FastAPI integration middleware defaults to a 50 KB request body |
 | Protocol version | only Guard Band marker version `v:1` is accepted |
 | Hash | SHA-256 over UTF-8 content, returned from `/wrap` for audit logging only — not part of verification |
 | MAC | HMAC-SHA256 over canonical JSON payload; the sole integrity guarantee checked during verification |

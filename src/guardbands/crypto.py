@@ -5,7 +5,7 @@ import base64
 import json
 import re
 import time
-from typing import Any
+from typing import Any, Protocol
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -27,8 +27,16 @@ _SIGNATURE_LENGTHS = {MAC_ALG: 32, ED25519_ALG: 64}
 # whoever can verify can also sign); Ed25519 keys select asymmetric signing,
 # where a public key is verification-only and cannot forge bands. That split
 # is what gives the two-channel architecture true cryptographic role
-# separation (see docs/DUAL_CHANNEL.md).
+# separation demonstrated by the guard-bands-reference deployment.
 GuardBandKey = bytes | Ed25519PrivateKey | Ed25519PublicKey
+
+
+class KeyResolver(Protocol):
+    """Application-supplied key lookup boundary."""
+
+    def get_signing_key(self, key_id: str | None = None) -> tuple[str, GuardBandKey]: ...
+
+    def get_verification_key(self, key_id: str) -> GuardBandKey | None: ...
 
 DEFAULT_TTL_SECONDS = 900
 DEFAULT_ISSUER = "anonymous"
@@ -272,7 +280,7 @@ class GuardBandCrypto:
     def __init__(
         self,
         secret_key: bytes | None = None,
-        key_resolver: StaticKeyResolver | None = None,
+        key_resolver: KeyResolver | None = None,
         default_key_id: str = "key001",
     ):
         if key_resolver is None:

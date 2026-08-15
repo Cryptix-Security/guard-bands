@@ -1,10 +1,13 @@
 # Key Management Expectations
 
-Guard Bands uses HMAC-SHA256. Anyone with the signing key can create content that verifies, so key handling is part of the security boundary.
+Guard Bands supports HMAC-SHA256 and Ed25519. Anyone with an HMAC key can both
+sign and verify; an Ed25519 verifier can hold only the public key. Key handling
+is part of the security boundary.
 
-## POC Expectations
+## Application Expectations
 
-- `SECRET_KEY` must be set before startup. The app intentionally exits if it is missing.
+- Load keys from application configuration or a key manager; the library never
+  reads environment variables or creates fallback keys.
 - Generate a local evaluation key with:
 
 ```bash
@@ -15,11 +18,16 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 - Use different keys for development, test, staging, and production.
 - Treat `key_id` as public metadata that identifies which secret signed a Guard Band. It is not the secret.
 - Set `KEY_ID` to choose the active signing key.
-- Optionally set `GUARD_BAND_KEYS` to a JSON object for rotation-style verification:
+- Construct a resolver with active and recently retired keys during rotation:
 
-```bash
-GUARD_BAND_KEYS='{"key001":"active-secret","key000":"retired-secret"}'
-KEY_ID=key001
+```python
+from guardbands import GuardBandCrypto, StaticKeyResolver
+
+resolver = StaticKeyResolver(
+    {"key001": b"active-secret", "key000": b"retired-secret"},
+    signing_key_id="key001",
+)
+crypto = GuardBandCrypto(key_resolver=resolver)
 ```
 
 ## Production Expectations
@@ -32,6 +40,9 @@ KEY_ID=key001
 - Restrict signing access more tightly than verification access when those roles can be separated.
 - Use TLS for all traffic that carries wrapped content or contexts. Guard Bands provide integrity, not confidentiality.
 
-## Current POC Gap
+## Resolver boundary
 
-The current implementation includes a small static key resolver suitable for local evaluation. A production implementation should replace this with a resolver backed by a secrets manager or KMS that chooses verification keys by `kid`, environment, tenant, and rotation state.
+The library includes a small static key resolver and a `KeyResolver` protocol.
+A production application should implement that protocol with a secrets manager
+or KMS that chooses verification keys by `kid`, environment, tenant, and
+rotation state.

@@ -4,22 +4,21 @@ Guard Bands prevents replay across different authenticated contexts. A payload w
 
 Replay within the exact same context is an application policy decision. For production systems, pair Guard Bands with a nonce ledger, expiration window, or both.
 
-The POC includes optional replay protection:
+The library includes in-memory and SQLite ledgers. Applications construct and
+inject the desired ledger explicitly; importing the library never creates
+process-global state:
 
-```bash
-REPLAY_PROTECTION_ENABLED=true
-REPLAY_LEDGER_BACKEND=memory
-REPLAY_WINDOW_SECONDS=900
+```python
+from guardbands import NonceReplayLedger
+
+ledger = NonceReplayLedger(ttl_seconds=900)
 ```
 
-`memory` is useful for local evaluation and tests. `sqlite` persists consumed nonces across restarts for a single-node pilot:
-
-```bash
-REPLAY_PROTECTION_ENABLED=true
-REPLAY_LEDGER_BACKEND=sqlite
-REPLAY_LEDGER_PATH=data/replay-ledger.sqlite3
-REPLAY_WINDOW_SECONDS=900
-```
+Pass the ledger to `GuardBandVerificationMiddleware(replay_ledger=ledger)` or
+call `apply_replay_protection(result, context, ledger)` at another enforcement
+boundary. `NonceReplayLedger` is useful for local evaluation and tests.
+`SQLiteReplayLedger` persists consumed nonces across restarts for a single-node
+pilot.
 
 Production deployments with multiple workers or replicas should use a shared datastore with atomic inserts or uniqueness constraints. The included SQLite backend is durable, but it is not a substitute for a shared Redis/Postgres ledger across multiple API replicas.
 
