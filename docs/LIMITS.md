@@ -13,6 +13,7 @@ This POC intentionally keeps limits conservative. They are designed to make the 
 | Nonce | random URL-safe nonce, validated as 16-128 URL-safe characters |
 | Key id | 1-64 characters, limited to letters, numbers, `_`, `.`, and `-` |
 | Replay ledger | optional in-memory ledger or SQLite-backed persistent ledger |
+| MCP integration payload | 1 MB canonical JSON by default, configurable per client and server adapter |
 | Parser | manual marker scanning for embedded blocks; strict full-block parsing for verification |
 
 ## Parser Behavior
@@ -24,6 +25,7 @@ Full verification rejects:
 - missing start or end markers
 - malformed marker blocks
 - nested Guard Band markers inside wrapped content
+- reserved Guard Band marker text emitted by MCP tool handlers when visible output wrapping is enabled
 - unsupported protocol versions
 - duplicate, unknown, or missing marker parameters
 - invalid key ids or nonces

@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.9.0 - 2026-08-15
+
+- Added detached signing and verification for canonical JSON-compatible values,
+  domain-separated from the existing inline text marker format.
+- Added an optional MCP 2.x `tools/call` integration with per-tool policies,
+  guarded client calls, a server extension, authenticated call context, and
+  whole-result verification.
+- Added visible Guard Band wrapping for MCP text result blocks while preserving
+  structured output schemas.
+- Added fail-closed coverage for argument and result tampering, context
+  mismatch, cross-call result substitution, reserved metadata, payload limits,
+  and marker smuggling.
+
 ## v0.8.0 - 2026-08-15
 
 - Split the reusable boundary mechanism into a standalone `guardbands` package
