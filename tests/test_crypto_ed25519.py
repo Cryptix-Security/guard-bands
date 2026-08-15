@@ -1,6 +1,6 @@
 import pytest
 
-from app.crypto import (
+from guardbands.crypto import (
     ED25519_ALG,
     MAC_ALG,
     GuardBandCrypto,

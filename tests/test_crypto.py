@@ -1,11 +1,11 @@
-from app.crypto import (
+from guardbands.crypto import (
     GuardBandCrypto,
     StaticKeyResolver,
     _encode_issuer,
     canonical_context,
     extract_guard_band_blocks,
 )
-from app.replay import NonceReplayLedger, SQLiteReplayLedger
+from guardbands.replay import NonceReplayLedger, SQLiteReplayLedger
 
 
 def make_crypto() -> GuardBandCrypto:

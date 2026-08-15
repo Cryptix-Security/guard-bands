@@ -1,20 +1,25 @@
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
-from app.crypto import GuardBandCrypto
-from integrations.fastapi_guard import (
+from guardbands import GuardBandCrypto, NonceReplayLedger
+from guardbands.integrations.fastapi import (
     GuardBandVerificationMiddleware,
     guard_band_verification,
 )
 
 
-def make_app(crypto: GuardBandCrypto, max_body_bytes: int = 50_000) -> FastAPI:
+def make_app(
+    crypto: GuardBandCrypto,
+    max_body_bytes: int = 50_000,
+    replay_ledger: NonceReplayLedger | None = None,
+) -> FastAPI:
     app = FastAPI()
     app.add_middleware(
         GuardBandVerificationMiddleware,
         crypto=crypto,
         required_paths={"/protected"},
         max_body_bytes=max_body_bytes,
+        replay_ledger=replay_ledger,
     )
 
     @app.post("/protected")
@@ -91,3 +96,24 @@ def test_fastapi_guard_middleware_rejects_oversized_body():
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Request body exceeds 20 bytes"
+
+
+def test_fastapi_guard_middleware_uses_injected_replay_ledger():
+    crypto = GuardBandCrypto(b"test-secret")
+    app = make_app(crypto, replay_ledger=NonceReplayLedger(ttl_seconds=60))
+    context = {"request_id": "req-001"}
+    wrapped = crypto.wrap_content("Single-use tool input", context)
+
+    with TestClient(app) as client:
+        first = client.post(
+            "/protected",
+            json={"wrapped_content": wrapped, "context": context},
+        )
+        second = client.post(
+            "/protected",
+            json={"wrapped_content": wrapped, "context": context},
+        )
+
+    assert first.status_code == 200
+    assert second.status_code == 400
+    assert "Replay detected" in second.json()["detail"]

@@ -12,7 +12,7 @@ attack surface. These tests assert two invariants under random input:
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from app.crypto import (
+from guardbands.crypto import (
     GuardBandCrypto,
     extract_guard_band_blocks,
 )

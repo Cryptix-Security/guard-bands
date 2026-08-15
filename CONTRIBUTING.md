@@ -1,6 +1,7 @@
 # Contributing
 
-Contributions are welcome, especially threat-model feedback, bypass attempts, tests, docs, and integrations.
+Contributions are welcome, especially threat-model feedback, bypass attempts,
+protocol test vectors, parser tests, docs, and framework integrations.
 
 ## Development
 
@@ -17,10 +18,10 @@ python -m pytest
 
 - Keep changes focused.
 - Add tests for security-relevant behavior.
-- Update docs when changing protocol, context, replay, key, or deployment behavior.
+- Update docs when changing protocol, context, replay, key, or middleware behavior.
 - Do not commit real secrets, tokens, `.env` files, or private infrastructure details.
 
 ## Security Changes
 
-Changes touching cryptography, parsing, replay protection, key handling, authentication, audit logging, CI, or dependency pins should receive extra review.
-
+Changes touching cryptography, parsing, replay protection, key handling,
+middleware enforcement, CI, or dependency bounds should receive extra review.
