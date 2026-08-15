@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.8.0 - 2026-08-15
 
 - Split the reusable boundary mechanism into a standalone `guardbands` package
   with only `cryptography` as a required dependency.
@@ -9,12 +9,6 @@
   injected dependency.
 - Moved the API service, SDK, dual-channel services, enterprise controls, and
   deployment assets to `Cryptix-Security/guard-bands-reference`.
-
-- Added an adversarial red-team of the two-channel control plane (`scripts/redteam_control_plane.py`, `make redteam-control-plane`): a battery of enforcement-path bypass attempts (forgery, tampering, wrong-keypair signatures, HMAC/Ed25519 algorithm confusion, foreign issuer, wrong-channel/cross-tenant/context-swap, expired bands, homoglyph markers, oversized/malformed input, marker smuggling, and authorization bypass). Exits non-zero on any bypass so it doubles as a regression guard; 0 bypasses at this revision.
-- Added an AgentDojo benchmark harness (`integrations/agentdojo/`, `scripts/run_agentdojo_benchmark.py`, `bench` extra): runs Guard Bands as a defense pipeline (cryptographic spotlighting plus an optional provenance gate) against tool-calling agents, with a free scripted-stub validation path, a cost estimate and confirmation before any live run, and unit tests for the defense mechanisms. See `docs/AGENTDOJO_HARNESS.md` for usage and a note on results with current frontier models.
-- Added an AgentDojo-style structural workflow evaluation script and documentation for reproducible local boundary tests.
-- Made Makefile Python commands configurable with `PYTHON`, defaulting to `python3`.
-- Documentation consistency pass: fixed the FastAPI app version (0.6.0 → 0.7.0), refreshed the research paper to the current feature set and made its release references version-agnostic, added `docs/SECRETS.md` to the README docs table, updated the README/QUICKSTART validation lists to the full current suite, and added Python SDK and two-channel deployment sections to QUICKSTART.
 
 ## v0.7.0-poc - 2026-07-12
 
