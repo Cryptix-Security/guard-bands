@@ -20,8 +20,10 @@ Please include:
 In scope:
 
 - Guard Band wrapping and verification bypasses
+- marker parsing, canonicalization, or cross-language interoperability flaws
 - context-binding or replay-protection weaknesses
 - FastAPI middleware enforcement bypasses
+- MCP input, output, call-binding, or normalization bypasses
 - key resolver or replay-ledger weaknesses in the library
 
 Out of scope:
@@ -34,3 +36,6 @@ Out of scope:
 ## Supported Versions
 
 Only the default branch and the latest tagged release are actively maintained.
+
+The pre-`1.0.0` independent review scope and release gate are documented in
+[`docs/EXTERNAL_REVIEW.md`](docs/EXTERNAL_REVIEW.md).
