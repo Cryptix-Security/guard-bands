@@ -1,8 +1,12 @@
 """Public API for the Guard Bands boundary library."""
 
 from .crypto import (
+    CURRENT_PROTOCOL_VERSION,
     ED25519_ALG,
+    LEGACY_ED25519_ALG,
+    LEGACY_MAC_ALG,
     MAC_ALG,
+    SUPPORTED_PROTOCOL_VERSIONS,
     GuardBandCrypto,
     GuardBandKey,
     KeyResolver,
@@ -22,8 +26,12 @@ from .replay import (
 )
 
 __all__ = [
+    "CURRENT_PROTOCOL_VERSION",
     "ED25519_ALG",
+    "LEGACY_ED25519_ALG",
+    "LEGACY_MAC_ALG",
     "MAC_ALG",
+    "SUPPORTED_PROTOCOL_VERSIONS",
     "GuardBandCrypto",
     "GuardBandKey",
     "KeyResolver",

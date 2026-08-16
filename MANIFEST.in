@@ -1,0 +1,3 @@
+include conformance/README.md
+include conformance/vectors.json
+include scripts/generate_conformance.py

@@ -7,7 +7,8 @@ This POC intentionally keeps limits conservative. They are designed to make the 
 | Area | Current behavior |
 |---|---|
 | Content size | FastAPI integration middleware defaults to a 50 KB request body |
-| Protocol version | only Guard Band marker version `v:1` is accepted |
+| Protocol version | new signatures use `v:2`; verification accepts `v:1` and `v:2` |
+| Canonical JSON | v2 uses RFC 8785/JCS and rejects values outside the I-JSON interoperability domain |
 | Hash | SHA-256 over UTF-8 content, returned from `/wrap` for audit logging only — not part of verification |
 | MAC | HMAC-SHA256 over canonical JSON payload; the sole integrity guarantee checked during verification |
 | Nonce | random URL-safe nonce, validated as 16-128 URL-safe characters |

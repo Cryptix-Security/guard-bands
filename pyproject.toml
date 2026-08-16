@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "guard-bands"
-version = "0.10.0"
+version = "0.11.0.dev0"
 description = "Cryptographic boundaries for separating untrusted LLM content from trusted instructions and tool execution."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
   "cryptography>=44",
+  "rfc8785>=0.1.4,<0.2",
 ]
 
 [project.optional-dependencies]

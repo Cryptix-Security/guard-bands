@@ -6,7 +6,7 @@ without invalidating the MAC:
 
 ```json
 {
-  "alg": "GBv1-HMAC-SHA256",
+  "alg": "GBv2-HMAC-SHA256",
   "content": "<exact wrapped content body>",
   "context": { "...": "..." },
   "exp": 1735689600,
@@ -14,24 +14,25 @@ without invalidating the MAC:
   "iss": "<issuer / minting principal>",
   "kid": "<signing key id>",
   "nonce": "<guard-band nonce>",
-  "v": "1"
+  "v": "2"
 }
 ```
 
 The `alg` tag provides domain separation and blocks algorithm downgrade; `iat`
 and `exp` bind the band's lifetime so freshness is enforced from authenticated
 data (fail closed) rather than from an external ledger alone. Bands signed
-with an Ed25519 key carry `"alg": "GBv1-Ed25519"`; the tag follows the
+with an Ed25519 key carry `"alg": "GBv2-Ed25519"`; the tag follows the
 resolved key's type, so a band can never verify under a different algorithm
 than the one it was signed with.
 
-The canonical serializer uses:
+Protocol v2 uses RFC 8785 JSON Canonicalization Scheme (JCS), which provides:
 
 - UTF-8 encoded JSON
-- sorted object keys
+- recursive object-key sorting by UTF-16 code units
 - compact separators with no insignificant spaces
 - unescaped non-ASCII characters
-- no NaN or Infinity values
+- ECMAScript-compatible IEEE-754 number serialization
+- rejection of NaN, Infinity, lone surrogates, and out-of-domain integers
 
 This makes context key order irrelevant:
 
@@ -60,15 +61,18 @@ Context should include the values that make a wrapped payload valid for exactly 
 
 Do not include unstable values that legitimately change between wrap and verify unless they are intentionally part of the security decision.
 
-## Compatibility Note
+## Compatibility
 
-Changing canonicalization changes MAC input. If this POC is extended into a deployed system, treat serialization rules as versioned protocol behavior and include the serializer version in signed metadata before supporting multiple formats.
+Protocol v1 used Python-specific JSON serialization. V2 moved to RFC 8785 so
+Python and TypeScript can reproduce the same bytes. The verifier retains v1
+support, while new signatures use v2. See [`PROTOCOL.md`](PROTOCOL.md) for the
+wire contract and staged rollout procedure.
 
-The current marker format includes protocol version `v:1`, issued/expiry
+The current marker format includes protocol version `v:2`, issued/expiry
 timestamps, and the minting issuer:
 
 ```text
-⟪INERT:START:v:1:r:nonce:iat:1735688700:exp:1735689600⟫
+⟪INERT:START:v:2:r:nonce:iat:1735688700:exp:1735689600⟫
 content
 ⟪INERT:END:mac:signature:kid:key001:iss:b64url(issuer)⟫
 ```

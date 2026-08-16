@@ -117,5 +117,5 @@ def test_detached_value_rejects_non_json_values():
 
     with pytest.raises((TypeError, ValueError)):
         crypto.sign_value({"bad": object()}, {})
-    with pytest.raises(ValueError, match="Out of range float"):
+    with pytest.raises(ValueError, match="not representable in JCS"):
         crypto.sign_value({"bad": float("nan")}, {})
