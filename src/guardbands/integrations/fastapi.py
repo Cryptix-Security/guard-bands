@@ -10,7 +10,6 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from ..crypto import GuardBandCrypto
 from ..replay import ReplayLedger, apply_replay_protection
 
-
 DEFAULT_MAX_BODY_BYTES = 50_000
 
 
@@ -64,7 +63,9 @@ class GuardBandVerificationMiddleware:
         result = self.crypto.extract_and_verify(wrapped_content, context)
         result = apply_replay_protection(result, context, self.replay_ledger)
         if not result.get("valid"):
-            await self._reject(scope, send, f"Guard Band verification failed: {result.get('error')}")
+            await self._reject(
+                scope, send, f"Guard Band verification failed: {result.get('error')}"
+            )
             return
 
         scope.setdefault("state", {})["guard_band_verification"] = result

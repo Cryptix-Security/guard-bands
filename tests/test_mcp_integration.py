@@ -16,7 +16,6 @@ from guardbands.integrations.mcp import (
     guard_bands_client_capability,
 )
 
-
 POLICY = MCPToolPolicy(guard_inputs=True, guard_outputs=True, ttl_seconds=60)
 
 
@@ -35,6 +34,7 @@ def make_server(*, context=None, policies=None, tool=None):
     )
     server = MCPServer("test-server", extensions=[extension])
     if tool is None:
+
         @server.tool(name="echo")
         def echo(text: str) -> dict[str, str]:
             return {"echo": text}
@@ -61,9 +61,7 @@ async def guarded_client(server, crypto, *, context=None, policies=None, client=
 def test_guarded_tool_call_verifies_input_and_wraps_output_text():
     async def scenario():
         server, crypto = make_server(context={"tenant": "a"})
-        raw, guarded, context = await guarded_client(
-            server, crypto, context={"tenant": "a"}
-        )
+        raw, guarded, context = await guarded_client(server, crypto, context={"tenant": "a"})
         async with raw:
             result = await guarded.call_tool(
                 "echo", {"text": "untrusted document"}, guard_context=context
@@ -204,9 +202,7 @@ def test_output_only_policy_uses_call_binding_without_input_signature():
 
     async def scenario():
         server, crypto = make_server(policies={"echo": output_only})
-        raw, guarded, _ = await guarded_client(
-            server, crypto, policies={"echo": output_only}
-        )
+        raw, guarded, _ = await guarded_client(server, crypto, policies={"echo": output_only})
         async with raw:
             result = await guarded.call_tool("echo", {"text": "hello"})
 

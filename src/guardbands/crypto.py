@@ -1,18 +1,17 @@
-import hmac
-import hashlib
-import secrets
 import base64
+import hashlib
+import hmac
 import json
 import re
+import secrets
 import time
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
-
 
 SUPPORTED_PROTOCOL_VERSION = "1"
 STRUCTURED_VALUE_KIND = "json"
@@ -30,6 +29,8 @@ _SIGNATURE_LENGTHS = {MAC_ALG: 32, ED25519_ALG: 64}
 # is what gives the two-channel architecture true cryptographic role
 # separation demonstrated by the guard-bands-reference deployment.
 GuardBandKey = bytes | Ed25519PrivateKey | Ed25519PublicKey
+GuardBandContext = dict[str, Any]
+GuardBandResult = dict[str, Any]
 
 
 class KeyResolver(Protocol):
@@ -38,6 +39,7 @@ class KeyResolver(Protocol):
     def get_signing_key(self, key_id: str | None = None) -> tuple[str, GuardBandKey]: ...
 
     def get_verification_key(self, key_id: str) -> GuardBandKey | None: ...
+
 
 DEFAULT_TTL_SECONDS = 900
 DEFAULT_ISSUER = "anonymous"
@@ -63,7 +65,7 @@ def canonical_json(value: Any) -> str:
     )
 
 
-def canonical_context(context: dict | None) -> str:
+def canonical_context(context: GuardBandContext | None) -> str:
     """Return the canonical context string used for signing and verification."""
     return canonical_json(context or {})
 
@@ -111,7 +113,7 @@ def load_ed25519_public_key(encoded: str) -> Ed25519PublicKey:
 
 def canonical_mac_payload(
     content: str,
-    context: dict | None,
+    context: GuardBandContext | None,
     nonce: str,
     *,
     version: str,
@@ -165,7 +167,7 @@ def extract_guard_band_blocks(text: str) -> list[str]:
     Extraction does not establish authenticity. Every returned block still
     requires ``extract_and_verify`` with application-derived context.
     """
-    blocks = []
+    blocks: list[str] = []
     search_from = 0
     while True:
         start_index = text.find(START_PREFIX, search_from)
@@ -204,7 +206,7 @@ def extract_guard_band_blocks(text: str) -> list[str]:
             search_from = nested_start
             continue
 
-        candidate = text[start_index:end_close + 1]
+        candidate = text[start_index : end_close + 1]
         _, syntax_error = _parse_guard_band(candidate, validate_signature=True)
         if syntax_error is None:
             blocks.append(candidate)
@@ -232,9 +234,9 @@ def _parse_guard_band_block(wrapped: str) -> tuple[str, str, str, str | None]:
     if end_close != len(wrapped) - 1:
         return "", "", "", "Malformed guard band block"
 
-    start_params = wrapped[len(START_PREFIX):start_close]
+    start_params = wrapped[len(START_PREFIX) : start_close]
     content = wrapped[content_start:end_index]
-    end_params = wrapped[end_index + 1 + len(END_PREFIX):end_close]
+    end_params = wrapped[end_index + 1 + len(END_PREFIX) : end_close]
     return start_params, content, end_params, None
 
 
@@ -301,9 +303,7 @@ def _parse_guard_band(
     if not NONCE_PATTERN.fullmatch(nonce):
         return None, "Invalid nonce format"
 
-    if not INT_PATTERN.fullmatch(start_dict["iat"]) or not INT_PATTERN.fullmatch(
-        start_dict["exp"]
-    ):
+    if not INT_PATTERN.fullmatch(start_dict["iat"]) or not INT_PATTERN.fullmatch(start_dict["exp"]):
         return None, "Invalid timestamp format"
     issued_at = int(start_dict["iat"])
     expires_at = int(start_dict["exp"])
@@ -370,9 +370,7 @@ class StaticKeyResolver:
         if key is None:
             raise ValueError(f"Unknown signing key id: {selected_key_id}")
         if isinstance(key, Ed25519PublicKey):
-            raise ValueError(
-                f"Key id {selected_key_id} is verification-only and cannot sign"
-            )
+            raise ValueError(f"Key id {selected_key_id} is verification-only and cannot sign")
         return selected_key_id, key
 
     def get_verification_key(self, key_id: str) -> GuardBandKey | None:
@@ -402,13 +400,13 @@ class GuardBandCrypto:
         Informational only — the MAC is the integrity guarantee. Exposed for
         callers that want a stable content fingerprint (e.g. audit logs).
         """
-        h = hashlib.sha256(content.encode('utf-8')).digest()
-        return base64.b64encode(h).decode('utf-8')
+        h = hashlib.sha256(content.encode("utf-8")).digest()
+        return base64.b64encode(h).decode("utf-8")
 
     def generate_mac(
         self,
         content: str,
-        context: dict,
+        context: GuardBandContext,
         nonce: str,
         secret_key: GuardBandKey,
         *,
@@ -427,9 +425,16 @@ class GuardBandCrypto:
         """
         alg = key_algorithm(secret_key)
         message = canonical_mac_payload(
-            content, context, nonce,
-            version=version, key_id=key_id, issuer=issuer,
-            issued_at=issued_at, expires_at=expires_at, alg=alg, kind=kind,
+            content,
+            context,
+            nonce,
+            version=version,
+            key_id=key_id,
+            issuer=issuer,
+            issued_at=issued_at,
+            expires_at=expires_at,
+            alg=alg,
+            kind=kind,
         )
         if isinstance(secret_key, Ed25519PublicKey):
             raise ValueError("Ed25519 public key is verification-only and cannot sign")
@@ -437,12 +442,12 @@ class GuardBandCrypto:
             signature = secret_key.sign(message)
         else:
             signature = hmac.new(secret_key, message, hashlib.sha256).digest()
-        return base64.b64encode(signature).decode('utf-8')
+        return base64.b64encode(signature).decode("utf-8")
 
     def verify_mac(
         self,
         content: str,
-        context: dict,
+        context: GuardBandContext,
         nonce: str,
         provided_mac: str,
         secret_key: GuardBandKey,
@@ -456,16 +461,21 @@ class GuardBandCrypto:
     ) -> bool:
         """Verify the signature over the recomputed authenticated payload."""
         alg = key_algorithm(secret_key)
-        if alg == ED25519_ALG:
+        if isinstance(secret_key, (Ed25519PrivateKey, Ed25519PublicKey)):
             message = canonical_mac_payload(
-                content, context, nonce,
-                version=version, key_id=key_id, issuer=issuer,
-                issued_at=issued_at, expires_at=expires_at, alg=alg, kind=kind,
+                content,
+                context,
+                nonce,
+                version=version,
+                key_id=key_id,
+                issuer=issuer,
+                issued_at=issued_at,
+                expires_at=expires_at,
+                alg=alg,
+                kind=kind,
             )
             public_key = (
-                secret_key.public_key()
-                if isinstance(secret_key, Ed25519PrivateKey)
-                else secret_key
+                secret_key.public_key() if isinstance(secret_key, Ed25519PrivateKey) else secret_key
             )
             try:
                 public_key.verify(base64.b64decode(provided_mac), message)
@@ -474,21 +484,28 @@ class GuardBandCrypto:
                 return False
 
         expected_mac = self.generate_mac(
-            content, context, nonce, secret_key,
-            version=version, key_id=key_id, issuer=issuer,
-            issued_at=issued_at, expires_at=expires_at, kind=kind,
+            content,
+            context,
+            nonce,
+            secret_key,
+            version=version,
+            key_id=key_id,
+            issuer=issuer,
+            issued_at=issued_at,
+            expires_at=expires_at,
+            kind=kind,
         )
         return hmac.compare_digest(expected_mac, provided_mac)
 
     def sign_value(
         self,
         value: Any,
-        context: dict,
+        context: GuardBandContext,
         key_id: str | None = None,
         issuer: str | None = None,
         ttl_seconds: int | None = None,
         now: float | None = None,
-    ) -> dict:
+    ) -> GuardBandResult:
         """Sign a JSON-compatible value and return a detached envelope.
 
         Detached envelopes are intended for structured protocols such as MCP,
@@ -535,10 +552,10 @@ class GuardBandCrypto:
     def verify_value(
         self,
         value: Any,
-        envelope: dict,
-        context: dict,
+        envelope: GuardBandResult,
+        context: GuardBandContext,
         now: float | None = None,
-    ) -> dict:
+    ) -> GuardBandResult:
         """Verify a detached envelope for a JSON-compatible value."""
         try:
             expected_fields = {
@@ -632,12 +649,12 @@ class GuardBandCrypto:
     def wrap_with_metadata(
         self,
         content: str,
-        context: dict,
+        context: GuardBandContext,
         key_id: str | None = None,
         issuer: str | None = None,
         ttl_seconds: int | None = None,
         now: float | None = None,
-    ) -> dict:
+    ) -> GuardBandResult:
         """Wrap content and return the band plus its authenticated metadata."""
         if RESERVED_START_MARKER in content or RESERVED_END_MARKER in content:
             raise ValueError("Content contains reserved Guard Band markers")
@@ -656,9 +673,15 @@ class GuardBandCrypto:
         expires_at = issued_at + ttl
 
         mac = self.generate_mac(
-            content, context, nonce, signing_key,
-            version=SUPPORTED_PROTOCOL_VERSION, key_id=signing_key_id,
-            issuer=issuer, issued_at=issued_at, expires_at=expires_at,
+            content,
+            context,
+            nonce,
+            signing_key,
+            version=SUPPORTED_PROTOCOL_VERSION,
+            key_id=signing_key_id,
+            issuer=issuer,
+            issued_at=issued_at,
+            expires_at=expires_at,
         )
 
         wrapped = (
@@ -679,19 +702,29 @@ class GuardBandCrypto:
     def wrap_content(
         self,
         content: str,
-        context: dict,
+        context: GuardBandContext,
         key_id: str | None = None,
         issuer: str | None = None,
         ttl_seconds: int | None = None,
         now: float | None = None,
     ) -> str:
         """Wrap content with guard bands and return the band string."""
-        return self.wrap_with_metadata(
-            content, context, key_id=key_id, issuer=issuer,
-            ttl_seconds=ttl_seconds, now=now,
-        )["wrapped"]
+        metadata = self.wrap_with_metadata(
+            content,
+            context,
+            key_id=key_id,
+            issuer=issuer,
+            ttl_seconds=ttl_seconds,
+            now=now,
+        )
+        return cast(str, metadata["wrapped"])
 
-    def extract_and_verify(self, wrapped: str, context: dict, now: float | None = None) -> dict:
+    def extract_and_verify(
+        self,
+        wrapped: str,
+        context: GuardBandContext,
+        now: float | None = None,
+    ) -> GuardBandResult:
         """Extract content and verify guard bands"""
         try:
             if "⟪INERT:START" not in wrapped:
@@ -728,9 +761,16 @@ class GuardBandCrypto:
             # lifetime, and the algorithm tag (derived from the key type, so
             # cross-algorithm confusion fails closed).
             if not self.verify_mac(
-                content, context, nonce, provided_mac, verification_key,
-                version=version, key_id=key_id, issuer=issuer,
-                issued_at=issued_at, expires_at=expires_at,
+                content,
+                context,
+                nonce,
+                provided_mac,
+                verification_key,
+                version=version,
+                key_id=key_id,
+                issuer=issuer,
+                issued_at=issued_at,
+                expires_at=expires_at,
             ):
                 return {"valid": False, "error": "MAC verification failed"}
 

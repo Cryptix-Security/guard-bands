@@ -53,9 +53,10 @@ def test_detached_value_rejects_expired_unknown_and_extra_fields():
     assert crypto.verify_value([], {**envelope, "extra": True}, {}, now=1_001)["error"] == (
         "Invalid detached envelope fields"
     )
-    assert crypto.verify_value(
-        [], {**envelope, "key_id": "missing"}, {}, now=1_001
-    )["error"] == "Unknown key id: missing"
+    assert (
+        crypto.verify_value([], {**envelope, "key_id": "missing"}, {}, now=1_001)["error"]
+        == "Unknown key id: missing"
+    )
 
 
 def test_detached_value_rejects_algorithm_confusion():
@@ -92,8 +93,8 @@ def test_detached_value_is_domain_separated_from_inline_text():
     start, _, end = wrapped.split("\n")
     start_fields = start.removeprefix("⟪INERT:START:").removesuffix("⟫").split(":")
     end_fields = end.removeprefix("⟪INERT:END:").removesuffix("⟫").split(":")
-    start_meta = dict(zip(start_fields[::2], start_fields[1::2]))
-    end_meta = dict(zip(end_fields[::2], end_fields[1::2]))
+    start_meta = dict(zip(start_fields[::2], start_fields[1::2], strict=True))
+    end_meta = dict(zip(end_fields[::2], end_fields[1::2], strict=True))
     issuer = base64.urlsafe_b64decode(end_meta["iss"] + "==").decode()
     transplanted = {
         "version": start_meta["v"],
