@@ -192,6 +192,7 @@ See:
 - [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
 - [`docs/REMOTE_SIGNING.md`](docs/REMOTE_SIGNING.md)
+- [`docs/EXTERNAL_REVIEW.md`](docs/EXTERNAL_REVIEW.md)
 - [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)
 - [`docs/LIMITS.md`](docs/LIMITS.md)
 - [`docs/MCP.md`](docs/MCP.md)
@@ -218,4 +219,5 @@ integrations incrementally.
 
 Guard Bands remains an experimental security mechanism. Protocol or API
 changes may occur before `1.0.0`; wire-format changes are called out explicitly
-in the changelog.
+in the changelog. A stable release is blocked on the independent review gate in
+[`docs/EXTERNAL_REVIEW.md`](docs/EXTERNAL_REVIEW.md).
