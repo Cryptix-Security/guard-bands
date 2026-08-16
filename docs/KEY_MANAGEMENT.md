@@ -43,6 +43,12 @@ crypto = GuardBandCrypto(key_resolver=resolver)
 ## Resolver boundary
 
 The library includes a small static key resolver and a `KeyResolver` protocol.
-A production application should implement that protocol with a secrets manager
-or KMS that chooses verification keys by `kid`, environment, tenant, and
-rotation state.
+It is appropriate for keys already loaded into the process, including secrets
+fetched during startup and cached public verification keys. It is synchronous:
+applications must not hide blocking KMS, Vault, HSM, or network calls behind
+it when running in FastAPI, MCP, or another event loop.
+
+Non-exportable and remotely operated keys require a distinct async boundary.
+The proposed handle-based interface, immutable-version rotation rules, failure
+behavior, and delivery plan are in
+[`REMOTE_SIGNING.md`](REMOTE_SIGNING.md). That API is not implemented yet.
