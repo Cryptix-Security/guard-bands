@@ -48,6 +48,8 @@ ISSUER_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,344}$")  # base64url(no pad) of <
 INT_PATTERN = re.compile(r"^[0-9]{1,19}$")
 START_PREFIX = "⟪INERT:START:"
 END_PREFIX = "⟪INERT:END:"
+RESERVED_START_MARKER = "⟪INERT:START"
+RESERVED_END_MARKER = "⟪INERT:END"
 
 
 def canonical_json(value: Any) -> str:
@@ -158,7 +160,11 @@ def _decode_issuer(encoded: str) -> str | None:
 
 
 def extract_guard_band_blocks(text: str) -> list[str]:
-    """Find complete Guard Band blocks embedded in a larger prompt."""
+    """Find syntactically valid Guard Band candidates in a larger prompt.
+
+    Extraction does not establish authenticity. Every returned block still
+    requires ``extract_and_verify`` with application-derived context.
+    """
     blocks = []
     search_from = 0
     while True:
@@ -171,7 +177,11 @@ def extract_guard_band_blocks(text: str) -> list[str]:
             search_from = start_index + len(START_PREFIX)
             continue
 
-        nested_start = text.find(START_PREFIX, start_index + len(START_PREFIX), start_close)
+        nested_start = text.find(
+            START_PREFIX,
+            start_index + len(START_PREFIX),
+            start_close,
+        )
         if nested_start != -1:
             search_from = nested_start
             continue
@@ -186,8 +196,23 @@ def extract_guard_band_blocks(text: str) -> list[str]:
             search_from = start_index + len(START_PREFIX)
             continue
 
-        blocks.append(text[start_index:end_close + 1])
-        search_from = end_close + 1
+        # A forged outer start must not swallow a genuine inner band. Valid
+        # signer output can never contain a reserved start marker, so the
+        # innermost candidate is the only one worth parsing.
+        nested_start = text.find(START_PREFIX, start_close + 2, end_index)
+        if nested_start != -1:
+            search_from = nested_start
+            continue
+
+        candidate = text[start_index:end_close + 1]
+        _, syntax_error = _parse_guard_band(candidate, validate_signature=True)
+        if syntax_error is None:
+            blocks.append(candidate)
+            search_from = end_close + 1
+        else:
+            # Resume after the start token rather than after the candidate end
+            # so a later genuine start cannot be skipped by hostile framing.
+            search_from = start_index + len(START_PREFIX)
 
 
 def _parse_guard_band_block(wrapped: str) -> tuple[str, str, str, str | None]:
@@ -245,6 +270,76 @@ def _parse_params(raw_params: str, expected_keys: set[str]) -> tuple[dict[str, s
         return {}, f"Missing marker parameter: {sorted(missing)[0]}"
 
     return params, None
+
+
+def _parse_guard_band(
+    wrapped: str,
+    *,
+    validate_signature: bool = False,
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Parse and validate marker grammar without establishing authenticity."""
+    start_params, content, end_params, parse_error = _parse_guard_band_block(wrapped)
+    if parse_error:
+        return None, parse_error
+
+    if RESERVED_START_MARKER in content or RESERVED_END_MARKER in content:
+        return None, "Nested guard band markers are not allowed"
+
+    start_dict, start_error = _parse_params(start_params, {"v", "r", "iat", "exp"})
+    if start_error:
+        return None, start_error
+
+    end_dict, end_error = _parse_params(end_params, {"mac", "kid", "iss"})
+    if end_error:
+        return None, end_error
+
+    version = start_dict["v"]
+    if version != SUPPORTED_PROTOCOL_VERSION:
+        return None, f"Unsupported guard band version: {version}"
+
+    nonce = start_dict["r"]
+    if not NONCE_PATTERN.fullmatch(nonce):
+        return None, "Invalid nonce format"
+
+    if not INT_PATTERN.fullmatch(start_dict["iat"]) or not INT_PATTERN.fullmatch(
+        start_dict["exp"]
+    ):
+        return None, "Invalid timestamp format"
+    issued_at = int(start_dict["iat"])
+    expires_at = int(start_dict["exp"])
+    if expires_at < issued_at:
+        return None, "Invalid timestamp range"
+
+    key_id = end_dict["kid"]
+    if not KEY_ID_PATTERN.fullmatch(key_id):
+        return None, "Invalid key id format"
+
+    encoded_issuer = end_dict["iss"]
+    if not ISSUER_PATTERN.fullmatch(encoded_issuer):
+        return None, "Invalid issuer format"
+    issuer = _decode_issuer(encoded_issuer)
+    if issuer is None:
+        return None, "Invalid issuer encoding"
+
+    provided_mac = end_dict["mac"]
+    if validate_signature:
+        try:
+            decoded_mac = base64.b64decode(provided_mac, validate=True)
+        except Exception:
+            return None, "Invalid MAC encoding"
+        if len(decoded_mac) not in _SIGNATURE_LENGTHS.values():
+            return None, "Invalid MAC length"
+
+    return {
+        "content": content,
+        "version": version,
+        "nonce": nonce,
+        "issued_at": issued_at,
+        "expires_at": expires_at,
+        "key_id": key_id,
+        "issuer": issuer,
+        "provided_mac": provided_mac,
+    }, None
 
 
 class StaticKeyResolver:
@@ -544,6 +639,9 @@ class GuardBandCrypto:
         now: float | None = None,
     ) -> dict:
         """Wrap content and return the band plus its authenticated metadata."""
+        if RESERVED_START_MARKER in content or RESERVED_END_MARKER in content:
+            raise ValueError("Content contains reserved Guard Band markers")
+
         issuer = issuer or DEFAULT_ISSUER
         if len(issuer.encode("utf-8")) > 256:
             raise ValueError("Issuer must be at most 256 bytes")
@@ -602,52 +700,24 @@ class GuardBandCrypto:
             if "⟪INERT:END" not in wrapped:
                 return {"valid": False, "error": "Missing end marker"}
 
-            start_params, content, end_params, parse_error = _parse_guard_band_block(wrapped)
+            parsed, parse_error = _parse_guard_band(wrapped)
             if parse_error:
                 return {"valid": False, "error": parse_error}
+            assert parsed is not None
 
-            if "⟪INERT:START" in content or "⟪INERT:END" in content:
-                return {"valid": False, "error": "Nested guard band markers are not allowed"}
-
-            start_dict, start_error = _parse_params(start_params, {"v", "r", "iat", "exp"})
-            if start_error:
-                return {"valid": False, "error": start_error}
-
-            end_dict, end_error = _parse_params(end_params, {"mac", "kid", "iss"})
-            if end_error:
-                return {"valid": False, "error": end_error}
-
-            version = start_dict["v"]
-            if version != SUPPORTED_PROTOCOL_VERSION:
-                return {"valid": False, "error": f"Unsupported guard band version: {version}"}
-
-            nonce = start_dict["r"]
-            if not NONCE_PATTERN.fullmatch(nonce):
-                return {"valid": False, "error": "Invalid nonce format"}
-
-            if not INT_PATTERN.fullmatch(start_dict["iat"]) or not INT_PATTERN.fullmatch(start_dict["exp"]):
-                return {"valid": False, "error": "Invalid timestamp format"}
-            issued_at = int(start_dict["iat"])
-            expires_at = int(start_dict["exp"])
-            if expires_at < issued_at:
-                return {"valid": False, "error": "Invalid timestamp range"}
-
-            key_id = end_dict["kid"]
-            if not KEY_ID_PATTERN.fullmatch(key_id):
-                return {"valid": False, "error": "Invalid key id format"}
-
-            encoded_issuer = end_dict["iss"]
-            if not ISSUER_PATTERN.fullmatch(encoded_issuer):
-                return {"valid": False, "error": "Invalid issuer format"}
-            issuer = _decode_issuer(encoded_issuer)
-            if issuer is None:
-                return {"valid": False, "error": "Invalid issuer encoding"}
+            content = parsed["content"]
+            version = parsed["version"]
+            nonce = parsed["nonce"]
+            issued_at = parsed["issued_at"]
+            expires_at = parsed["expires_at"]
+            key_id = parsed["key_id"]
+            issuer = parsed["issuer"]
+            provided_mac = parsed["provided_mac"]
 
             verification_key = self.key_resolver.get_verification_key(key_id)
             if verification_key is None:
                 return {"valid": False, "error": f"Unknown key id: {key_id}"}
 
-            provided_mac = end_dict["mac"]
             expected_length = _SIGNATURE_LENGTHS[key_algorithm(verification_key)]
             mac_error = _decode_base64_field(provided_mac, expected_length, "MAC")
             if mac_error:

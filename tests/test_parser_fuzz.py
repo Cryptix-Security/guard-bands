@@ -9,6 +9,7 @@ attack surface. These tests assert two invariants under random input:
      verifies as valid.
 """
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -49,18 +50,19 @@ def test_verify_never_crashes_and_never_false_accepts(text):
 @settings(max_examples=300)
 def test_wrap_verify_round_trip_is_stable(content, request_id):
     context = {"request_id": request_id}
+    if "⟪INERT:START" in content or "⟪INERT:END" in content:
+        with pytest.raises(ValueError, match="reserved Guard Band markers"):
+            CRYPTO.wrap_content(content, context)
+        return
+
     wrapped = CRYPTO.wrap_content(content, context)
+    result = CRYPTO.extract_and_verify(wrapped, context)
 
     # A clean band always verifies and yields the exact content back.
-    result = CRYPTO.extract_and_verify(wrapped, context)
-    if "⟪INERT:START" in content or "⟪INERT:END" in content:
-        # Embedded markers are deliberately rejected as nested.
-        assert result["valid"] is False
-    else:
-        assert result["valid"] is True
-        assert result["content"] == content
-        # The block extractor recovers exactly the band we produced.
-        assert extract_guard_band_blocks(f"prefix\n{wrapped}\nsuffix") == [wrapped]
+    assert result["valid"] is True
+    assert result["content"] == content
+    # The block extractor recovers exactly the band we produced.
+    assert extract_guard_band_blocks(f"prefix\n{wrapped}\nsuffix") == [wrapped]
 
 
 @given(

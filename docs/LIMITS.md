@@ -32,6 +32,13 @@ Full verification rejects:
 - invalid MAC encoding
 - MAC mismatch
 
+The signer also rejects content containing reserved `⟪INERT:START` or
+`⟪INERT:END` marker text, so it never emits a band that the verifier would
+reject as nested or ambiguous. Embedded-block extraction returns only
+syntactically valid candidates and resynchronizes at nested starts, but it does
+not establish authenticity; callers must still verify every extracted block
+with application-derived context.
+
 ## Running Local Benchmarks
 
 Run:
