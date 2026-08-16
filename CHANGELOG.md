@@ -7,7 +7,7 @@
 - Preserved verification of legacy protocol v1 artifacts and added an explicit
   `signing_version="1"` rollout mode for staged upgrades.
 - Published deterministic canonicalization, HMAC-SHA256, Ed25519, inline,
-  detached, legacy, and negative conformance vectors.
+  detached, MCP exchange, legacy, and negative conformance vectors.
 - Added a normative wire-protocol document and CI coverage that prevents the
   implementation, generator, and committed vectors from drifting.
 

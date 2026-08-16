@@ -6,7 +6,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from guardbands import GuardBandCrypto, StaticKeyResolver, canonical_json
-from scripts.generate_conformance import FixedNonceCrypto, build_vectors
+from scripts.generate_conformance import FixedNonceCrypto, _mcp_context, build_vectors
 
 ROOT = Path(__file__).parents[1]
 VECTORS_PATH = ROOT / "conformance" / "vectors.json"
@@ -114,3 +114,35 @@ def test_negative_conformance_vectors_are_rejected():
                 now=1_700_000_000,
             )
         assert result["valid"] is vector["valid"], vector["id"]
+
+
+def test_mcp_conformance_vector_verifies_complete_exchange():
+    vectors = load_vectors()
+    hmac_key, _ = make_keys(vectors)
+    crypto = GuardBandCrypto(
+        key_resolver=StaticKeyResolver({"test-hmac-01": hmac_key}, "test-hmac-01")
+    )
+    vector = vectors["mcp"][0]
+    arguments = vector["arguments"]
+
+    input_result = crypto.verify_value(
+        arguments,
+        vector["input_envelope"],
+        _mcp_context(direction="input", arguments=arguments),
+        now=1_700_000_000,
+    )
+    output_result = crypto.verify_value(
+        vector["result_payload"],
+        vector["output_envelope"],
+        _mcp_context(direction="output", arguments=arguments),
+        now=1_700_000_000,
+    )
+    text_result = crypto.extract_and_verify(
+        vector["result_payload"]["content"][0]["text"],
+        _mcp_context(direction="output-text", arguments=arguments, content_index=0),
+        now=1_700_000_000,
+    )
+
+    assert input_result["valid"] is True
+    assert output_result["valid"] is True
+    assert text_result["valid"] is True
