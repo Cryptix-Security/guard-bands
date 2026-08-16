@@ -100,12 +100,36 @@ multi-round-trip retry; the eventual final result is signed. The logical Guard
 Band call id remains stable even though MCP assigns a new JSON-RPC request id
 to each retry.
 
-The first release intentionally covers `tools/call` only. Task-extension
-handles, resources, prompts, and notifications are not Guard Band boundaries.
-Do not apply the generic nonce replay ledgers directly to MCP inputs: a valid
-multi-round-trip flow can legitimately reuse the signed arguments. Use
-application idempotency keys for side-effecting tools until a retry-aware MCP
-replay ledger is provided.
+### Streaming, Progress, and Deferred Results
+
+MCP's **Streamable HTTP** name describes its transport framing: a response may
+use an SSE stream to carry protocol messages. It does not define incremental or
+partial `CallToolResult` content. The Guard Bands adapter is transport-neutral
+and signs the one complete tool result defined by `tools/call`.
+
+MCP **progress notifications** contain a progress token, numeric progress, and
+optional total and human-readable status message. They are notifications, not
+partial tool results, and this adapter does not sign them. Applications must
+not promote a progress message into trusted model content; if an application
+does pass one to a model, it needs a separate application-level data boundary.
+
+The **Tasks extension** can return a task handle and expose a deferred final
+result through separate task methods. Task handles, task polling, and task
+results are outside the current adapter. Do not combine guarded-output policies
+with task-returning tools until explicit Tasks support exists.
+
+See the current MCP specifications for
+[`tools/call`](https://modelcontextprotocol.io/specification/2026-07-28/server/tools),
+[progress](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/progress),
+[transports](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports),
+and the [Tasks extension](https://tasks.extensions.modelcontextprotocol.io/specification/draft/tasks).
+
+The first release intentionally covers `tools/call` only. Resources, prompts,
+notifications, vendor-defined partial-content messages, and task-extension
+methods are not Guard Band boundaries. Do not apply the generic nonce replay
+ledgers directly to MCP inputs: a valid multi-round-trip flow can legitimately
+reuse the signed arguments. Use application idempotency keys for side-effecting
+tools until a retry-aware MCP replay ledger is provided.
 
 ## Limits and Failure Behavior
 
