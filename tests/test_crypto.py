@@ -1,6 +1,9 @@
+import sqlite3
+
 import pytest
 
 from guardbands.crypto import (
+    CURRENT_PROTOCOL_VERSION,
     GuardBandCrypto,
     StaticKeyResolver,
     _encode_issuer,
@@ -26,8 +29,8 @@ def test_basic_wrap_and_verify():
     assert result["content"] == content
     assert result["nonce"]
     assert result["key_id"] == "key001"
-    assert result["version"] == "1"
-    assert wrapped.startswith("⟪INERT:START:v:1:")
+    assert result["version"] == CURRENT_PROTOCOL_VERSION
+    assert wrapped.startswith(f"⟪INERT:START:v:{CURRENT_PROTOCOL_VERSION}:")
 
 
 def test_context_serialization_is_canonical():
@@ -122,11 +125,41 @@ def test_unsupported_protocol_version_is_rejected():
     context = {"request_id": "req-001"}
     wrapped = crypto.wrap_content("Document body", context)
 
-    tampered = wrapped.replace("⟪INERT:START:v:1:", "⟪INERT:START:v:2:")
+    tampered = wrapped.replace("⟪INERT:START:v:2:", "⟪INERT:START:v:3:")
     result = crypto.extract_and_verify(tampered, context)
 
     assert result["valid"] is False
-    assert result["error"] == "Unsupported guard band version: 2"
+    assert result["error"] == "Unsupported guard band version: 3"
+
+
+def test_signing_version_supports_staged_v1_to_v2_migration():
+    legacy_signer = GuardBandCrypto(b"test-secret", signing_version="1")
+    verifier = GuardBandCrypto(b"test-secret")
+    context = {"request_id": "req-migration"}
+
+    wrapped = legacy_signer.wrap_content("Legacy rollout band", context, now=1_000)
+    result = verifier.extract_and_verify(wrapped, context, now=1_001)
+
+    assert wrapped.startswith("⟪INERT:START:v:1:")
+    assert result["valid"] is True
+    assert result["version"] == "1"
+
+
+def test_unsupported_signing_version_is_rejected():
+    with pytest.raises(ValueError, match="Unsupported signing version: 3"):
+        GuardBandCrypto(b"test-secret", signing_version="3")
+
+
+def test_protocol_version_substitution_is_rejected():
+    crypto = make_crypto()
+    context = {"request_id": "req-version-substitution"}
+    wrapped = crypto.wrap_content("Document body", context, now=1_000)
+
+    tampered = wrapped.replace("⟪INERT:START:v:2:", "⟪INERT:START:v:1:")
+    result = crypto.extract_and_verify(tampered, context, now=1_001)
+
+    assert result["valid"] is False
+    assert result["error"] == "MAC verification failed"
 
 
 def test_duplicate_marker_parameters_are_rejected():
@@ -134,7 +167,7 @@ def test_duplicate_marker_parameters_are_rejected():
     context = {"request_id": "req-001"}
     wrapped = crypto.wrap_content("Document body", context)
 
-    tampered = wrapped.replace("⟪INERT:START:v:1:", "⟪INERT:START:v:1:v:1:")
+    tampered = wrapped.replace("⟪INERT:START:v:2:", "⟪INERT:START:v:2:v:2:")
     result = crypto.extract_and_verify(tampered, context)
 
     assert result["valid"] is False
@@ -243,6 +276,17 @@ def test_sqlite_replay_ledger_expires_entries(tmp_path):
     assert ledger.consume(context, "key001", "nonce-value", now=1000) is True
     assert ledger.consume(context, "key001", "nonce-value", now=1005) is False
     assert ledger.consume(context, "key001", "nonce-value", now=1011) is True
+
+
+def test_sqlite_replay_ledger_preserves_pre_v2_key_serialization(tmp_path):
+    ledger_path = tmp_path / "replay.sqlite3"
+    ledger = SQLiteReplayLedger(str(ledger_path), ttl_seconds=60)
+
+    assert ledger.consume({"ratio": 1.0}, "key001", "nonce-value", now=1_000) is True
+    with sqlite3.connect(ledger_path) as connection:
+        stored_key = connection.execute("SELECT ledger_key FROM replay_nonces").fetchone()[0]
+
+    assert stored_key == ('{"context":{"ratio":1.0},"key_id":"key001","nonce":"nonce-value"}')
 
 
 def test_tampered_key_id_is_rejected():

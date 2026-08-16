@@ -37,6 +37,8 @@ authority or replace normal authorization.
 For the design rationale, security claims, threat model, and research status,
 read [`docs/RESEARCH.md`](docs/RESEARCH.md). For a concise implementation view,
 see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+The normative wire format and cross-language fixtures are in
+[`docs/PROTOCOL.md`](docs/PROTOCOL.md) and [`conformance/`](conformance/).
 
 ## Install
 
@@ -56,7 +58,7 @@ For the MCP integration:
 python -m pip install 'guard-bands[mcp]'
 ```
 
-Until version `0.10.0` is published, install directly from the repository:
+To install the tagged `v0.10.0` release directly from GitHub:
 
 ```bash
 python -m pip install 'guard-bands[fastapi,mcp] @ git+https://github.com/Cryptix-Security/guard-bands.git@v0.10.0'

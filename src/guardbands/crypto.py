@@ -7,21 +7,37 @@ import secrets
 import time
 from typing import Any, Protocol, cast
 
+import rfc8785
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
 
-SUPPORTED_PROTOCOL_VERSION = "1"
+CURRENT_PROTOCOL_VERSION = "2"
+SUPPORTED_PROTOCOL_VERSIONS = frozenset({"1", CURRENT_PROTOCOL_VERSION})
+# Compatibility alias retained for callers that used the original singular
+# constant to discover the version emitted by the signer.
+SUPPORTED_PROTOCOL_VERSION = CURRENT_PROTOCOL_VERSION
 STRUCTURED_VALUE_KIND = "json"
 # Domain-separation / algorithm tags bound into every signature. The tag is
 # derived from the resolved key's type and authenticated inside the payload,
 # so a band signed under one algorithm can never verify under another
 # (no downgrade or cross-algorithm confusion).
-MAC_ALG = "GBv1-HMAC-SHA256"
-ED25519_ALG = "GBv1-Ed25519"
-_SIGNATURE_LENGTHS = {MAC_ALG: 32, ED25519_ALG: 64}
+LEGACY_MAC_ALG = "GBv1-HMAC-SHA256"
+LEGACY_ED25519_ALG = "GBv1-Ed25519"
+MAC_ALG = "GBv2-HMAC-SHA256"
+ED25519_ALG = "GBv2-Ed25519"
+_ALGORITHMS = {
+    "1": {"hmac": LEGACY_MAC_ALG, "ed25519": LEGACY_ED25519_ALG},
+    "2": {"hmac": MAC_ALG, "ed25519": ED25519_ALG},
+}
+_SIGNATURE_LENGTHS = {
+    LEGACY_MAC_ALG: 32,
+    LEGACY_ED25519_ALG: 64,
+    MAC_ALG: 32,
+    ED25519_ALG: 64,
+}
 
 # Keys accepted by the resolver: raw bytes select HMAC-SHA256 (symmetric —
 # whoever can verify can also sign); Ed25519 keys select asymmetric signing,
@@ -55,7 +71,12 @@ RESERVED_END_MARKER = "⟪INERT:END"
 
 
 def canonical_json(value: Any) -> str:
-    """Return stable JSON for authenticated Guard Band metadata."""
+    """Return RFC 8785 canonical JSON used by Guard Band protocol v2."""
+    return rfc8785.dumps(value).decode("utf-8")
+
+
+def _canonical_json_v1(value: Any) -> str:
+    """Return the legacy Python canonical JSON used by protocol v1."""
     return json.dumps(
         value,
         sort_keys=True,
@@ -65,17 +86,29 @@ def canonical_json(value: Any) -> str:
     )
 
 
+def _canonical_json_for_version(value: Any, version: str) -> str:
+    if version == "1":
+        return _canonical_json_v1(value)
+    if version == "2":
+        return canonical_json(value)
+    raise ValueError(f"Unsupported guard band version: {version}")
+
+
 def canonical_context(context: GuardBandContext | None) -> str:
     """Return the canonical context string used for signing and verification."""
     return canonical_json(context or {})
 
 
-def key_algorithm(key: GuardBandKey) -> str:
+def key_algorithm(key: GuardBandKey, *, version: str = CURRENT_PROTOCOL_VERSION) -> str:
     """Return the authenticated algorithm tag selected by a key's type."""
+    try:
+        algorithms = _ALGORITHMS[version]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported guard band version: {version}") from exc
     if isinstance(key, (Ed25519PrivateKey, Ed25519PublicKey)):
-        return ED25519_ALG
+        return algorithms["ed25519"]
     if isinstance(key, (bytes, bytearray)):
-        return MAC_ALG
+        return algorithms["hmac"]
     raise TypeError(f"Unsupported key type: {type(key).__name__}")
 
 
@@ -121,7 +154,7 @@ def canonical_mac_payload(
     issuer: str,
     issued_at: int,
     expires_at: int,
-    alg: str = MAC_ALG,
+    alg: str | None = None,
     kind: str = "text",
 ) -> bytes:
     """Serialize the exact payload authenticated by the Guard Band signature.
@@ -131,7 +164,7 @@ def canonical_mac_payload(
     them can be tampered with or downgraded without invalidating the signature.
     """
     payload = {
-        "alg": alg,
+        "alg": alg or _ALGORITHMS.get(version, {}).get("hmac", MAC_ALG),
         "content": content,
         "context": context or {},
         "exp": expires_at,
@@ -146,7 +179,7 @@ def canonical_mac_payload(
     # therefore never be transplanted into the other.
     if kind != "text":
         payload["kind"] = kind
-    return canonical_json(payload).encode("utf-8")
+    return _canonical_json_for_version(payload, version).encode("utf-8")
 
 
 def _encode_issuer(issuer: str) -> str:
@@ -296,7 +329,7 @@ def _parse_guard_band(
         return None, end_error
 
     version = start_dict["v"]
-    if version != SUPPORTED_PROTOCOL_VERSION:
+    if version not in SUPPORTED_PROTOCOL_VERSIONS:
         return None, f"Unsupported guard band version: {version}"
 
     nonce = start_dict["r"]
@@ -383,12 +416,16 @@ class GuardBandCrypto:
         secret_key: bytes | None = None,
         key_resolver: KeyResolver | None = None,
         default_key_id: str = "key001",
+        signing_version: str = CURRENT_PROTOCOL_VERSION,
     ):
+        if signing_version not in SUPPORTED_PROTOCOL_VERSIONS:
+            raise ValueError(f"Unsupported signing version: {signing_version}")
         if key_resolver is None:
             if secret_key is None:
                 raise ValueError("secret_key or key_resolver is required")
             key_resolver = StaticKeyResolver({default_key_id: secret_key}, default_key_id)
         self.key_resolver = key_resolver
+        self.signing_version = signing_version
 
     def generate_nonce(self) -> str:
         """Generate a random nonce"""
@@ -423,7 +460,7 @@ class GuardBandCrypto:
         private key → Ed25519 signature. A verification-only public key
         cannot sign and raises.
         """
-        alg = key_algorithm(secret_key)
+        alg = key_algorithm(secret_key, version=version)
         message = canonical_mac_payload(
             content,
             context,
@@ -460,7 +497,7 @@ class GuardBandCrypto:
         kind: str = "text",
     ) -> bool:
         """Verify the signature over the recomputed authenticated payload."""
-        alg = key_algorithm(secret_key)
+        alg = key_algorithm(secret_key, version=version)
         if isinstance(secret_key, (Ed25519PrivateKey, Ed25519PublicKey)):
             message = canonical_mac_payload(
                 content,
@@ -512,7 +549,7 @@ class GuardBandCrypto:
         where changing the application's JSON value would violate its schema.
         The value itself is not included in the envelope.
         """
-        value_json = canonical_json(value)
+        value_json = _canonical_json_for_version(value, self.signing_version)
         issuer = issuer or DEFAULT_ISSUER
         if len(issuer.encode("utf-8")) > 256:
             raise ValueError("Issuer must be at most 256 bytes")
@@ -525,13 +562,13 @@ class GuardBandCrypto:
         signing_key_id, signing_key = self.key_resolver.get_signing_key(key_id)
         issued_at = int(time.time() if now is None else now)
         expires_at = issued_at + ttl
-        algorithm = key_algorithm(signing_key)
+        algorithm = key_algorithm(signing_key, version=self.signing_version)
         signature = self.generate_mac(
             value_json,
             context,
             nonce,
             signing_key,
-            version=SUPPORTED_PROTOCOL_VERSION,
+            version=self.signing_version,
             key_id=signing_key_id,
             issuer=issuer,
             issued_at=issued_at,
@@ -539,7 +576,7 @@ class GuardBandCrypto:
             kind=STRUCTURED_VALUE_KIND,
         )
         return {
-            "version": SUPPORTED_PROTOCOL_VERSION,
+            "version": self.signing_version,
             "nonce": nonce,
             "issued_at": issued_at,
             "expires_at": expires_at,
@@ -580,7 +617,7 @@ class GuardBandCrypto:
             algorithm = envelope["algorithm"]
             signature = envelope["signature"]
 
-            if version != SUPPORTED_PROTOCOL_VERSION:
+            if not isinstance(version, str) or version not in SUPPORTED_PROTOCOL_VERSIONS:
                 return {"valid": False, "error": f"Unsupported guard band version: {version}"}
             if not isinstance(nonce, str) or not NONCE_PATTERN.fullmatch(nonce):
                 return {"valid": False, "error": "Invalid nonce format"}
@@ -598,7 +635,7 @@ class GuardBandCrypto:
             verification_key = self.key_resolver.get_verification_key(key_id)
             if verification_key is None:
                 return {"valid": False, "error": f"Unknown key id: {key_id}"}
-            expected_algorithm = key_algorithm(verification_key)
+            expected_algorithm = key_algorithm(verification_key, version=version)
             if algorithm != expected_algorithm:
                 return {"valid": False, "error": "Signature algorithm mismatch"}
             signature_error = _decode_base64_field(
@@ -607,7 +644,7 @@ class GuardBandCrypto:
             if signature_error:
                 return {"valid": False, "error": signature_error}
 
-            value_json = canonical_json(value)
+            value_json = _canonical_json_for_version(value, version)
             if not self.verify_mac(
                 value_json,
                 context,
@@ -677,7 +714,7 @@ class GuardBandCrypto:
             context,
             nonce,
             signing_key,
-            version=SUPPORTED_PROTOCOL_VERSION,
+            version=self.signing_version,
             key_id=signing_key_id,
             issuer=issuer,
             issued_at=issued_at,
@@ -685,7 +722,7 @@ class GuardBandCrypto:
         )
 
         wrapped = (
-            f"⟪INERT:START:v:{SUPPORTED_PROTOCOL_VERSION}"
+            f"⟪INERT:START:v:{self.signing_version}"
             f":r:{nonce}:iat:{issued_at}:exp:{expires_at}⟫\n"
             f"{content}\n"
             f"⟪INERT:END:mac:{mac}:kid:{signing_key_id}:iss:{_encode_issuer(issuer)}⟫"
@@ -751,7 +788,7 @@ class GuardBandCrypto:
             if verification_key is None:
                 return {"valid": False, "error": f"Unknown key id: {key_id}"}
 
-            expected_length = _SIGNATURE_LENGTHS[key_algorithm(verification_key)]
+            expected_length = _SIGNATURE_LENGTHS[key_algorithm(verification_key, version=version)]
             mac_error = _decode_base64_field(provided_mac, expected_length, "MAC")
             if mac_error:
                 return {"valid": False, "error": mac_error}

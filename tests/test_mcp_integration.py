@@ -68,7 +68,7 @@ def test_guarded_tool_call_verifies_input_and_wraps_output_text():
             )
 
         assert result.structured_content == {"echo": "untrusted document"}
-        assert result.content[0].text.startswith("⟪INERT:START:v:1:")
+        assert result.content[0].text.startswith("⟪INERT:START:v:2:")
         assert "untrusted document" in result.content[0].text
         assert MCP_GUARD_BAND_ID in result.meta
 
@@ -97,7 +97,7 @@ def test_output_wrapping_preserves_non_text_blocks_without_duplication():
             result = await guarded.call_tool("echo", {"text": "untrusted"})
 
         assert len(result.content) == 2
-        assert result.content[0].text.startswith("⟪INERT:START:v:1:")
+        assert result.content[0].text.startswith("⟪INERT:START:v:2:")
         assert result.content[1] == image
 
     run(scenario())

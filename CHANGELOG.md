@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Added cross-language protocol v2 using RFC 8785/JCS canonical JSON and
+  version-specific `GBv2-*` algorithm domain tags.
+- Preserved verification of legacy protocol v1 artifacts and added an explicit
+  `signing_version="1"` rollout mode for staged upgrades.
+- Published deterministic canonicalization, HMAC-SHA256, Ed25519, inline,
+  detached, legacy, and negative conformance vectors.
+- Added a normative wire-protocol document and CI coverage that prevents the
+  implementation, generator, and committed vectors from drifting.
+
 ## v0.10.0 - 2026-08-16
 
 - Rejected reserved Guard Band marker text at signing time so the library

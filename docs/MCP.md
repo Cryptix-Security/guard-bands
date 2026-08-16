@@ -33,13 +33,13 @@ Detached envelopes use the reverse-DNS MCP extension identifier:
       "version": 1,
       "call_id": "cryptographically-random-logical-call-id",
       "input": {
-        "version": "1",
+        "version": "2",
         "nonce": "...",
         "issued_at": 1786838400,
         "expires_at": 1786839300,
         "key_id": "client-2026-08",
         "issuer": "trusted-mcp-host",
-        "algorithm": "GBv1-Ed25519",
+        "algorithm": "GBv2-Ed25519",
         "signature": "..."
       }
     }

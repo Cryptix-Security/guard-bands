@@ -110,7 +110,7 @@ verification may be ignored.
 Text is wrapped in versioned markers:
 
 ```text
-⟪INERT:START:v:1:r:b64url(nonce):iat:issued_at:exp:expires_at⟫
+⟪INERT:START:v:2:r:b64url(nonce):iat:issued_at:exp:expires_at⟫
 [untrusted content]
 ⟪INERT:END:mac:b64(signature):kid:keyid:iss:b64url(issuer)⟫
 ```
@@ -120,7 +120,7 @@ security-relevant metadata:
 
 ```json
 {
-  "alg": "GBv1-HMAC-SHA256",
+  "alg": "GBv2-HMAC-SHA256",
   "content": "<exact content body>",
   "context": {"...": "..."},
   "exp": 1735689600,
@@ -128,7 +128,7 @@ security-relevant metadata:
   "iss": "<issuer>",
   "kid": "<key id>",
   "nonce": "<guard-band nonce>",
-  "v": "1"
+  "v": "2"
 }
 ```
 
@@ -140,11 +140,13 @@ from being reinterpreted under another supported algorithm.
 
 ### 4.2 Canonicalization
 
-Guard Bands canonicalizes signed structured values as UTF-8 JSON with sorted
-object keys, compact separators, unescaped non-ASCII characters, and rejection
-of NaN and Infinity. Exact rules are part of the protocol because any change
-changes the signature input. See
-[`CONTEXT_SERIALIZATION.md`](CONTEXT_SERIALIZATION.md).
+Guard Bands v2 canonicalizes signed structured values as RFC 8785/JCS UTF-8
+JSON. This resolves cross-language differences in number spelling and Unicode
+property ordering that existed in the Python-specific v1 serializer. Python
+retains v1 verification for migration. Exact rules are part of the protocol
+because any change changes the signature input. See
+[`PROTOCOL.md`](PROTOCOL.md) and the executable
+[`conformance vectors`](../conformance/).
 
 Context should contain stable identifiers that constrain the intended use,
 such as:

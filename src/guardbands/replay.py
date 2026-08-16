@@ -12,7 +12,12 @@ import time
 from pathlib import Path
 from typing import Protocol
 
-from .crypto import GuardBandContext, GuardBandResult, canonical_context
+from .crypto import GuardBandContext, GuardBandResult, _canonical_json_v1
+
+
+def _canonical_replay_value(value: object) -> str:
+    """Preserve pre-v2 ledger keys across a rolling protocol upgrade."""
+    return _canonical_json_v1(value)
 
 
 class ReplayLedger(Protocol):
@@ -44,7 +49,7 @@ class NonceReplayLedger:
         current_time = time.time() if now is None else now
         self._prune(current_time)
 
-        ledger_key = (canonical_context(context), key_id, nonce)
+        ledger_key = (_canonical_replay_value(context), key_id, nonce)
         if ledger_key in self._seen:
             return False
 
@@ -87,7 +92,7 @@ class SQLiteReplayLedger:
                     """,
                     (
                         ledger_key,
-                        canonical_context(context),
+                        _canonical_replay_value(context),
                         key_id,
                         nonce,
                         expires_at,
@@ -120,7 +125,7 @@ class SQLiteReplayLedger:
         return sqlite3.connect(self.path, timeout=5)
 
     def _ledger_key(self, context: GuardBandContext, key_id: str, nonce: str) -> str:
-        return canonical_context({"context": context, "key_id": key_id, "nonce": nonce})
+        return _canonical_replay_value({"context": context, "key_id": key_id, "nonce": nonce})
 
 
 def apply_replay_protection(

@@ -46,7 +46,7 @@ The model is not the root of trust. It can request verification, but the applica
 The marker format is versioned, and every field is authenticated by the MAC:
 
 ```text
-⟪INERT:START:v:1:r:b64url(nonce):iat:issued_at:exp:expires_at⟫
+⟪INERT:START:v:2:r:b64url(nonce):iat:issued_at:exp:expires_at⟫
 [untrusted content]
 ⟪INERT:END:mac:b64(mac):kid:keyid:iss:b64url(issuer)⟫
 ```
@@ -60,6 +60,11 @@ The marker format is versioned, and every field is authenticated by the MAC:
 5. Sensitive tool calls still require normal authorization and policy checks.
 
 Verification fails closed. If a block is malformed, tampered with, signed by an unknown key, bound to the wrong context, expired, or replayed inside the same context, the application rejects it.
+
+Protocol v2 uses RFC 8785 canonical JSON for cross-language signatures. The
+Python implementation also verifies legacy v1 artifacts. The normative format
+and migration sequence are in [`PROTOCOL.md`](PROTOCOL.md), with executable
+fixtures in [`../conformance/`](../conformance/).
 
 ## FastAPI Integration
 
