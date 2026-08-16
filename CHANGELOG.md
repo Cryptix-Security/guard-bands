@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.11.0 - 2026-08-16
+
 - Added cross-language protocol v2 using RFC 8785/JCS canonical JSON and
   version-specific `GBv2-*` algorithm domain tags.
 - Preserved verification of legacy protocol v1 artifacts and added an explicit
@@ -10,6 +12,12 @@
   detached, MCP exchange, legacy, and negative conformance vectors.
 - Added a normative wire-protocol document and CI coverage that prevents the
   implementation, generator, and committed vectors from drifting.
+- Published the compatible TypeScript core and MCP implementation in the
+  separate `Cryptix-Security/guard-bands-ts` repository.
+- Documented the proposed asynchronous remote-signing boundary for
+  non-exportable KMS, Vault, and HSM keys without changing protocol v2.
+- Established an independent protocol/security review gate that must be
+  completed before `1.0.0`.
 
 ## v0.10.0 - 2026-08-16
 
