@@ -217,6 +217,12 @@ ledgers are not applied to MCP input because a valid multi-round-trip flow can
 reuse the signed arguments. Side-effecting tools should use application-level
 idempotency until a retry-aware ledger is available. See [`MCP.md`](MCP.md).
 
+This scope should not be confused with transport streaming. Streamable HTTP can
+carry protocol messages over SSE, but MCP defines a complete `CallToolResult`,
+not incremental tool-result content. Progress notifications carry status rather
+than partial results and are not signed. Deferred results produced through the
+Tasks extension use separate methods and are also outside the current adapter.
+
 ## 6. Threat Model
 
 ### 6.1 Assumptions
