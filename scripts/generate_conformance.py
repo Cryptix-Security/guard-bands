@@ -7,6 +7,7 @@ real signing.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 from typing import Any
 
@@ -30,6 +31,7 @@ NONCE = "AAAAAAAAAAAAAAAA"
 ISSUED_AT = 1_700_000_000
 EXPIRES_AT = 1_700_000_900
 ISSUER = "conformance.example"
+MCP_CALL_ID = "BBBBBBBBBBBBBBBB"
 
 
 class FixedNonceCrypto(GuardBandCrypto):
@@ -167,6 +169,74 @@ def _detached_vector(
     }
 
 
+def _mcp_context(
+    *,
+    direction: str,
+    arguments: dict[str, Any],
+    content_index: int | None = None,
+) -> dict[str, Any]:
+    context: dict[str, Any] = {
+        "application": {"tenant": "a"},
+        "audience": "conformance-host",
+        "call_id": MCP_CALL_ID,
+        "direction": direction,
+        "input_sha256": hashlib.sha256(canonical_json(arguments).encode()).hexdigest(),
+        "integration": "mcp",
+        "method": "tools/call",
+        "tool": "echo",
+    }
+    if content_index is not None:
+        context["content_index"] = content_index
+    return context
+
+
+def _mcp_vector() -> dict[str, Any]:
+    arguments = {"text": "untrusted document"}
+    signer = _signer(HMAC_KEY, "test-hmac-01")
+    input_envelope = signer.sign_value(
+        arguments,
+        _mcp_context(direction="input", arguments=arguments),
+        issuer="conformance-client",
+        now=ISSUED_AT,
+    )
+    wrapped_text = signer.wrap_content(
+        "untrusted document",
+        _mcp_context(direction="output-text", arguments=arguments, content_index=0),
+        issuer="conformance-server",
+        now=ISSUED_AT,
+    )
+    result_payload = {
+        "content": [
+            {
+                "type": "text",
+                "text": wrapped_text,
+                "annotations": None,
+                "_meta": None,
+            }
+        ],
+        "is_error": False,
+        "structured_content": {"echo": "untrusted document"},
+    }
+    output_envelope = signer.sign_value(
+        result_payload,
+        _mcp_context(direction="output", arguments=arguments),
+        issuer="conformance-server",
+        now=ISSUED_AT,
+    )
+    return {
+        "id": "mcp-v2-hmac-tools-call",
+        "envelope_version": 1,
+        "audience": "conformance-host",
+        "tool": "echo",
+        "call_id": MCP_CALL_ID,
+        "arguments": arguments,
+        "application_context": {"tenant": "a"},
+        "input_envelope": input_envelope,
+        "result_payload": result_payload,
+        "output_envelope": output_envelope,
+    }
+
+
 def build_vectors() -> dict[str, Any]:
     private = Ed25519PrivateKey.from_private_bytes(ED25519_SEED)
     public = private.public_key().public_bytes_raw()
@@ -281,6 +351,7 @@ def build_vectors() -> dict[str, Any]:
             },
         ],
         "signatures": signatures,
+        "mcp": [_mcp_vector()],
         "negative_cases": [
             {
                 "id": "inline-content-tampering",

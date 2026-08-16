@@ -7,6 +7,8 @@ for Guard Bands implementations. It contains:
   UTF-16 property ordering;
 - deterministic HMAC-SHA256 and Ed25519 examples for inline and detached v2
   signatures;
+- a deterministic MCP `tools/call` exchange covering guarded arguments,
+  visibly wrapped text, normalized result payload, and output envelope;
 - legacy v1 artifacts that new implementations can use to test migration
   verification; and
 - tampered artifacts that must fail verification.
@@ -21,7 +23,9 @@ An implementation claiming Guard Bands v2 conformance must:
 2. reproduce all four v2 signatures and artifacts byte-for-byte;
 3. accept every valid v2 artifact at a time within its authenticated lifetime;
 4. reject every `negative_cases` artifact; and
-5. reject non-I-JSON values, including NaN, Infinity, lone Unicode surrogates,
+5. verify the complete `mcp` exchange when the implementation provides the MCP
+   integration; and
+6. reject non-I-JSON values, including NaN, Infinity, lone Unicode surrogates,
    duplicate object names at a JSON parsing boundary, and integers outside the
    interoperable IEEE-754 domain.
 
