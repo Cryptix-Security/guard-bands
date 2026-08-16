@@ -200,11 +200,16 @@ python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 python -m pytest
+python -m ruff check src tests
+python -m ruff format --check src tests
+python -m mypy
 ```
 
 The test suite includes HMAC and Ed25519 behavior, context and metadata
 tampering, key rotation, expiry, replay ledgers, strict parser fuzzing, and
-FastAPI enforcement.
+FastAPI enforcement. Strict mypy coverage currently applies to the core crypto
+and replay modules; the configured baseline will expand to the optional
+integrations incrementally.
 
 ## Status
 

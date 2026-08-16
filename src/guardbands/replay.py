@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 from typing import Protocol
 
-from .crypto import canonical_context
+from .crypto import GuardBandContext, GuardBandResult, canonical_context
 
 
 class ReplayLedger(Protocol):
@@ -20,7 +20,7 @@ class ReplayLedger(Protocol):
 
     def consume(
         self,
-        context: dict,
+        context: GuardBandContext,
         key_id: str,
         nonce: str,
         now: float | None = None,
@@ -36,7 +36,7 @@ class NonceReplayLedger:
 
     def consume(
         self,
-        context: dict,
+        context: GuardBandContext,
         key_id: str,
         nonce: str,
         now: float | None = None,
@@ -68,7 +68,7 @@ class SQLiteReplayLedger:
 
     def consume(
         self,
-        context: dict,
+        context: GuardBandContext,
         key_id: str,
         nonce: str,
         now: float | None = None,
@@ -119,17 +119,15 @@ class SQLiteReplayLedger:
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self.path, timeout=5)
 
-    def _ledger_key(self, context: dict, key_id: str, nonce: str) -> str:
-        return canonical_context(
-            {"context": context, "key_id": key_id, "nonce": nonce}
-        )
+    def _ledger_key(self, context: GuardBandContext, key_id: str, nonce: str) -> str:
+        return canonical_context({"context": context, "key_id": key_id, "nonce": nonce})
 
 
 def apply_replay_protection(
-    result: dict,
-    context: dict,
+    result: GuardBandResult,
+    context: GuardBandContext,
     ledger: ReplayLedger | None,
-) -> dict:
+) -> GuardBandResult:
     """Consume a verified nonce, returning a fail-closed result on replay."""
     if not result.get("valid") or ledger is None:
         return result

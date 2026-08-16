@@ -18,12 +18,29 @@ from guardbands.crypto import (
     extract_guard_band_blocks,
 )
 
-
 CRYPTO = GuardBandCrypto(b"fuzz-secret")
 
 # Text that liberally includes the marker tokens/delimiters the parser keys on.
-_TOKENS = ["a", "b", "0", "9", ":", "⟪", "⟫", "\n",
-           "INERT", "START", "END", "mac", "kid", "iss", "v", "r", "iat", "exp"]
+_TOKENS = [
+    "a",
+    "b",
+    "0",
+    "9",
+    ":",
+    "⟪",
+    "⟫",
+    "\n",
+    "INERT",
+    "START",
+    "END",
+    "mac",
+    "kid",
+    "iss",
+    "v",
+    "r",
+    "iat",
+    "exp",
+]
 marker_soup = st.lists(st.sampled_from(_TOKENS), max_size=40).map("".join)
 
 
@@ -78,7 +95,7 @@ def test_single_character_content_mutation_is_rejected(content, flip_at):
 
     index = flip_at % len(content)
     mutated_char = "X" if content[index] != "X" else "Y"
-    mutated_content = content[:index] + mutated_char + content[index + 1:]
+    mutated_content = content[:index] + mutated_char + content[index + 1 :]
     if mutated_content == content:
         return
 

@@ -15,15 +15,14 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+import mcp.types as mcp_types
 from mcp.client import advertise
 from mcp.server.context import CallNext, HandlerResult, ServerRequestContext
 from mcp.server.extension import Extension
 from mcp.shared.exceptions import MCPError
 from mcp.types import CallToolRequestParams, CallToolResult, TextContent
-import mcp.types as mcp_types
 
 from ..crypto import GuardBandCrypto, canonical_json
-
 
 MCP_GUARD_BAND_ID = "com.guardbands/guard-band"
 MCP_GUARD_BAND_VERSION = 1
@@ -65,9 +64,7 @@ def guard_bands_client_capability():
     return advertise(MCP_GUARD_BAND_ID, {"envelopeVersion": MCP_GUARD_BAND_VERSION})
 
 
-def _policy_for(
-    policies: Mapping[str, MCPToolPolicy], tool_name: str
-) -> MCPToolPolicy:
+def _policy_for(policies: Mapping[str, MCPToolPolicy], tool_name: str) -> MCPToolPolicy:
     return policies.get(tool_name, policies.get("*", MCPToolPolicy()))
 
 

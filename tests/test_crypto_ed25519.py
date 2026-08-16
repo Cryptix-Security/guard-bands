@@ -110,9 +110,7 @@ def test_cross_algorithm_confusion_fails_closed():
     hmac_signer = GuardBandCrypto(
         key_resolver=StaticKeyResolver({"shared-id": b"hmac-secret"}, "shared-id")
     )
-    ed_signer = GuardBandCrypto(
-        key_resolver=StaticKeyResolver({"shared-id": private}, "shared-id")
-    )
+    ed_signer = GuardBandCrypto(key_resolver=StaticKeyResolver({"shared-id": private}, "shared-id"))
     context = {"request_id": "req-001"}
 
     hmac_band = hmac_signer.wrap_content("Document body", context)
