@@ -42,26 +42,28 @@ The normative wire format and cross-language fixtures are in
 
 ## Install
 
+The package is not yet published to PyPI. Install a tagged GitHub release:
+
 ```bash
-python -m pip install guard-bands
+python -m pip install 'guard-bands @ git+https://github.com/Cryptix-Security/guard-bands.git@v0.11.0'
 ```
 
 For the FastAPI integration:
 
 ```bash
-python -m pip install 'guard-bands[fastapi]'
+python -m pip install 'guard-bands[fastapi] @ git+https://github.com/Cryptix-Security/guard-bands.git@v0.11.0'
 ```
 
 For the MCP integration:
 
 ```bash
-python -m pip install 'guard-bands[mcp]'
+python -m pip install 'guard-bands[mcp] @ git+https://github.com/Cryptix-Security/guard-bands.git@v0.11.0'
 ```
 
-To install the tagged `v0.10.0` release directly from GitHub:
+For both optional integrations:
 
 ```bash
-python -m pip install 'guard-bands[fastapi,mcp] @ git+https://github.com/Cryptix-Security/guard-bands.git@v0.10.0'
+python -m pip install 'guard-bands[fastapi,mcp] @ git+https://github.com/Cryptix-Security/guard-bands.git@v0.11.0'
 ```
 
 ## Wrap and verify
