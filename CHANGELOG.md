@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.10.0 - 2026-08-16
+
+- Rejected reserved Guard Band marker text at signing time so the library
+  cannot emit nested or structurally ambiguous inline bands.
+- Hardened embedded-block extraction with complete marker-grammar validation
+  and nested-start resynchronization while preserving verification as the sole
+  authenticity decision.
+- Added adversarial extraction cases and updated parser fuzzing for the new
+  signer invariant.
+- Added repo-wide Ruff linting and formatting plus a strict mypy baseline for
+  the core crypto and replay modules.
+- Marked the package as PEP 561 typed with `py.typed` and enforced all quality
+  gates in CI.
+- Clarified that MCP Streamable HTTP is transport framing, progress
+  notifications are not partial tool output, and Tasks handles and deferred
+  results remain outside the current `tools/call` boundary.
+
 ## v0.9.0 - 2026-08-15
 
 - Added detached signing and verification for canonical JSON-compatible values,

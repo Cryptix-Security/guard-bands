@@ -56,10 +56,10 @@ For the MCP integration:
 python -m pip install 'guard-bands[mcp]'
 ```
 
-Until version `0.9.0` is published, install directly from the repository:
+Until version `0.10.0` is published, install directly from the repository:
 
 ```bash
-python -m pip install 'guard-bands[fastapi,mcp] @ git+https://github.com/Cryptix-Security/guard-bands.git@v0.9.0'
+python -m pip install 'guard-bands[fastapi,mcp] @ git+https://github.com/Cryptix-Security/guard-bands.git@v0.10.0'
 ```
 
 ## Wrap and verify
