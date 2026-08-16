@@ -191,6 +191,7 @@ See:
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/CONTEXT_SERIALIZATION.md`](docs/CONTEXT_SERIALIZATION.md)
 - [`docs/KEY_MANAGEMENT.md`](docs/KEY_MANAGEMENT.md)
+- [`docs/REMOTE_SIGNING.md`](docs/REMOTE_SIGNING.md)
 - [`docs/REPLAY_PROTECTION.md`](docs/REPLAY_PROTECTION.md)
 - [`docs/LIMITS.md`](docs/LIMITS.md)
 - [`docs/MCP.md`](docs/MCP.md)

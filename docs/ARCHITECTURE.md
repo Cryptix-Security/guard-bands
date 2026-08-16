@@ -138,3 +138,9 @@ Guard Bands do not prove content is true, safe, benign, or authorized. Verified 
 - Bind context to tenant, user, request, policy path, and downstream tool path.
 - Terminate TLS at a production-grade proxy or platform edge.
 - Keep audit logs immutable enough for investigation and retention needs.
+
+The current `KeyResolver` is an in-process, synchronous boundary. Do not place
+blocking KMS or Vault calls behind it in an async service. The proposed
+non-exportable-key and async execution boundary is specified in
+[`REMOTE_SIGNING.md`](REMOTE_SIGNING.md); it deliberately leaves the existing
+API and protocol v2 wire format unchanged.
